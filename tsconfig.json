@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["es5", "es2015.iterable", "es2015.collection"],
+    "allowSyntheticDefaultImports": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "noEmit": true,

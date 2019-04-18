@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "esModuleInterop": true,
     "noEmit": false,
     "outDir": "dist/cjs"
   },

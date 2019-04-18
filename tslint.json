@@ -4,6 +4,7 @@
     "interface-name": [true, "never-prefix"],
     "max-classes-per-file": false,
     "no-bitwise": false,
+    "no-submodule-imports": false,
     "no-this-assignment": [true, { "allow-destructuring": true }],
     "object-literal-sort-keys": false
   }

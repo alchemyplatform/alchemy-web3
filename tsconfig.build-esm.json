@@ -2,6 +2,7 @@
   "compilerOptions": {
     "declaration": true,
     "inlineSources": true,
+    "module": "es2015",
     "noEmit": false,
     "outDir": "dist/esm",
     "sourceMap": true

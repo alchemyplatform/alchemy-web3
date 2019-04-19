@@ -11,9 +11,9 @@ export interface AlchemyWeb3 extends Web3 {
 
 export interface AlchemyMethods {
   getTokenBalances(
-    tokenBalanceAddress: string,
+    address: string,
     contractAddresses: string[],
-    callback?: (error: Error | null, result?: TokenBalancesResponse) => void,
+    callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
 }
 
@@ -35,6 +35,8 @@ export interface TokenBalanceFailure {
   tokenBalance: null;
   error: string;
 }
+
+export type Web3Callback<T> = (error: Error | null, result?: T) => void;
 
 interface EthereumWindow extends Window {
   ethereum?: any;
@@ -60,65 +62,41 @@ const ALCHEMY_HEADERS = new Headers({
 export function createAlchemyWeb3(alchemyUrl: string): AlchemyWeb3 {
   function sendAsync(
     payload: JsonRpcPayload,
-    callback: (error: Error | null, result?: JsonRPCResponse) => void,
+    callback: Web3Callback<JsonRPCResponse>,
   ): void {
-    sendAsyncForPromise(payload, alchemyUrl).then(
-      result => callback(null, result),
-      error => callback(error),
-    );
+    callWhenDone(promisedSend(payload, alchemyUrl), callback);
   }
   const alchemyWeb3 = new Web3({ sendAsync } as any) as AlchemyWeb3;
   alchemyWeb3.alchemy = {
-    getTokenBalances: async (
-      tokenBalanceAddress,
-      contractAddresses,
-      callback,
-    ) => {
-      const payload: JsonRPCRequest = {
-        jsonrpc: "2.0",
-        id: 0,
-        method: "alchemy_getTokenBalances",
-        params: [tokenBalanceAddress, contractAddresses],
-      };
-      try {
-        const { error, result } = await sendAsyncForPromise(
-          payload,
-          alchemyUrl,
-        );
-        if (error != null) {
-          const errorObject = new Error(error);
-          if (callback) {
-            callback(errorObject);
-          }
-          throw error;
-        }
-        if (callback) {
-          callback(null, result);
-        }
-        return result;
-      } catch (error) {
-        if (callback) {
-          callback(error);
-        }
-        throw error;
-      }
-    },
+    getTokenBalances: (address, contractAddresses, callback) =>
+      callAlchemyMethod(
+        "alchemy_getTokenBalances",
+        [address, contractAddresses],
+        alchemyUrl,
+        callback,
+      ),
   };
   return alchemyWeb3;
 }
 
-async function sendAsyncForPromise(
+async function promisedSend(
   payload: JsonRpcPayload,
   alchemyUrl: string,
 ): Promise<JsonRPCResponse> {
   if (ALCHEMY_DISALLOWED_METHODS.indexOf(payload.method) === -1) {
     try {
       return await sendToAlchemy(payload, alchemyUrl);
-    } catch {
-      // Fallthrough to environment provider.
+    } catch (alchemyError) {
+      // Fallback to Metamask, but if both fail throw the error from Alchemy.
+      try {
+        return await sendToMetamaskProvider(payload);
+      } catch {
+        throw alchemyError;
+      }
     }
+  } else {
+    return sendToMetamaskProvider(payload);
   }
-  return sendToEnvironmentProvider(payload);
 }
 
 async function sendToAlchemy(
@@ -133,7 +111,7 @@ async function sendToAlchemy(
   return response.json();
 }
 
-function sendToEnvironmentProvider(
+function sendToMetamaskProvider(
   payload: JsonRpcPayload,
 ): Promise<JsonRPCResponse> {
   const provider = typeof window !== "undefined" ? window.ethereum : undefined;
@@ -142,16 +120,53 @@ function sendToEnvironmentProvider(
       `No Ethereum provider found for method "${payload.method}"`,
     );
   }
+  return promiseFromCallback(callback => provider.sendAsync(payload, callback));
+}
+
+function callAlchemyMethod<T>(
+  method: string,
+  params: any[],
+  alchemyUrl: string,
+  callback: Web3Callback<T> = noop,
+): Promise<T> {
+  const promise = (async () => {
+    const payload: JsonRPCRequest = { method, params, jsonrpc: "2.0", id: 0 };
+    const { error, result } = await sendToAlchemy(payload, alchemyUrl);
+    if (error != null) {
+      throw new Error(error);
+    }
+    return result;
+  })();
+  callWhenDone(promise, callback);
+  return promise;
+}
+
+/**
+ * Helper for converting functions which take a callback as their final argument
+ * to functions which return a promise.
+ */
+function promiseFromCallback<T>(
+  f: (callback: Web3Callback<T>) => void,
+): Promise<T> {
   return new Promise((resolve, reject) =>
-    provider.sendAsync(
-      payload,
-      (error: Error | null, result?: JsonRPCResponse) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(result);
-        }
-      },
-    ),
+    f((error, result) => {
+      if (error != null) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    }),
   );
+}
+
+/**
+ * Helper for converting functions which return a promise to functions which
+ * take a callback as their final argument.
+ */
+function callWhenDone<T>(promise: Promise<T>, callback: Web3Callback<T>): void {
+  promise.then(result => callback(null, result), error => callback(error));
+}
+
+function noop(): void {
+  // Nothing.
 }

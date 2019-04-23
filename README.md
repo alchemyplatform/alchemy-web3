@@ -1,17 +1,18 @@
 # Alchemy Web3
 
-Web3 client extended with Alchemy and Metamask integration.
+Web3 client extended with Alchemy and browser provider integration.
 
 ## Introduction
 
 Alchemy Web3 provides website authors with a drop-in replacement for the
 [web3.js](https://github.com/ethereum/web3.js) Ethereum API client. It produces
-a client matching that of web3.js, but brings two advantages to take advantage
-of [Alchemy API](https://alchemyapi.io):
+a client matching that of web3.js, but brings two advantages to make use of
+[Alchemy API](https://alchemyapi.io):
 
-- **Uses Alchemy or Metamask for requests as needed.** Most requests will be
-  sent through Alchemy, but requests involving signing and sending transactions
-  are sent via [Metamask](https://metamask.io/) if the user has it installed.
+- **Uses Alchemy or an injected provider as needed.** Most requests will be sent
+  through Alchemy, but requests involving signing and sending transactions are
+  sent via a browser provider like [Metamask](https://metamask.io/) or [Trust
+  Wallet](https://trustwallet.com) if the user has it installed.
 
 - **Easy access to Alchemy's higher-order APIs.** The client exposes methods to
   call Alchemy's exclusive features.
@@ -73,15 +74,31 @@ web3.eth
   });
 ```
 
-### With Metamask
+### With a Browser Provider
 
-If the user has [Metamask](https://metamask.io/) enabled in their browser, then
-any methods which involve user accounts or signing will automatically use the
-provider from Metamask, as [described in Metamask's
-docs](https://metamask.github.io/metamask-docs/API_Reference/Ethereum_Provider).
-However, for this to work **you must first request permission from the user to
-access their accounts in Metamask**. This is a security restriction required by
-Metamask: details can be found
+If the user has a provider in their browser available at `window.ethereum`, then
+any methods which involve user accounts or signing will automatically use it.
+This provider might be injected by [Metamask](https://metamask.io/), [Trust
+Wallet](https://trustwallet.com/dapp), or other browsers or browser extensions
+if the user has them installed. For example, the following will use a provider
+from the user's browser:
+
+```ts
+web3.eth.getAccounts().then(accounts => {
+  web3.eth.sendTransaction({
+    from: accounts[0],
+    to: "0x6A823E…",
+    value: "1000000000000000000",
+  });
+});
+```
+
+#### Note on using Metamask
+
+As just discussed, Metamask will automatically be used for accounts and signing
+if it is installed. However, for this to work **you must first request
+permission from the user to access their accounts in Metamask**. This is a
+security restriction required by Metamask: details can be found
 [here](https://medium.com/metamask/https-medium-com-metamask-breaking-change-injecting-web3-7722797916a8).
 
 To enable the use of Metamask, you must call
@@ -107,24 +124,6 @@ Note that doing so will display a Metamask dialog to the user if they have not
 already seen it and accepted, so you may choose to wait to enable Metamask until
 the user is about to perform an action which requires it. This is also why
 Alchemy Web3 will not automatically enable Metamask on page load.
-
-After enabling Metamask, any Web3 methods that involve accounts or signing will
-automatically use it. For example:
-
-```ts
-async function doTransaction() {
-  // Will return an empty array if Metamask has not been enabled!
-  const accounts = await web3.eth.getAccounts();
-
-  // This call will open a Metamask dialog asking the user to approve the
-  // transaction of 1 ETH to the given address.
-  await web3.eth.sendTransaction({
-    from: accounts[0],
-    to: "0x6A823E…",
-    value: "1000000000000000000",
-  });
-}
-```
 
 ## Alchemy Higher-Order APIs
 

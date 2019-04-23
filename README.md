@@ -146,7 +146,8 @@ An object with the following fields:
 - `address`: The address for which token balances were checked.
 - `tokenBalances`: An array of token balance objects. Each object contains:
   - `contractAddress`: The address of the contract.
-  - `tokenBalance`: The balance of the contract, as a hexidecimal string.
+  - `tokenBalance`: The balance of the contract, as a string representing a
+    base-10 number.
   - `error`: An error string. One of this or `tokenBalance` will be `null`.
 
 Copyright © 2019 Alchemy Insights Inc.

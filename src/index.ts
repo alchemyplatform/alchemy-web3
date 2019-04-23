@@ -69,12 +69,13 @@ export function createAlchemyWeb3(alchemyUrl: string): AlchemyWeb3 {
   const alchemyWeb3 = new Web3({ sendAsync } as any) as AlchemyWeb3;
   alchemyWeb3.alchemy = {
     getTokenBalances: (address, contractAddresses, callback) =>
-      callAlchemyMethod(
-        "alchemy_getTokenBalances",
-        [address, contractAddresses],
+      callAlchemyMethod({
         alchemyUrl,
         callback,
-      ),
+        method: "alchemy_getTokenBalances",
+        params: [address, contractAddresses],
+        processResponse: processTokenBalanceResponse,
+      }),
   };
   return alchemyWeb3;
 }
@@ -123,22 +124,43 @@ function sendToMetamaskProvider(
   return promiseFromCallback(callback => provider.sendAsync(payload, callback));
 }
 
-function callAlchemyMethod<T>(
-  method: string,
-  params: any[],
-  alchemyUrl: string,
-  callback: Web3Callback<T> = noop,
-): Promise<T> {
+interface CallAlchemyMethodParams<T> {
+  method: string;
+  params: any[];
+  alchemyUrl: string;
+  callback?: Web3Callback<T>;
+  processResponse?(response: any): T;
+}
+
+function callAlchemyMethod<T>({
+  method,
+  params,
+  alchemyUrl,
+  callback = noop,
+  processResponse = identity,
+}: CallAlchemyMethodParams<T>): Promise<T> {
   const promise = (async () => {
     const payload: JsonRPCRequest = { method, params, jsonrpc: "2.0", id: 0 };
     const { error, result } = await sendToAlchemy(payload, alchemyUrl);
     if (error != null) {
       throw new Error(error);
     }
-    return result;
+    return processResponse(result);
   })();
   callWhenDone(promise, callback);
   return promise;
+}
+
+function processTokenBalanceResponse(
+  rawResponse: TokenBalancesResponse,
+): TokenBalancesResponse {
+  // Convert token balance fields from hex-string to decimal-string.
+  const fixedTokenBalances = rawResponse.tokenBalances.map(balance =>
+    balance.tokenBalance != null
+      ? { ...balance, tokenBalance: hexToDecimal(balance.tokenBalance) }
+      : balance,
+  );
+  return { ...rawResponse, tokenBalances: fixedTokenBalances };
 }
 
 /**
@@ -167,6 +189,35 @@ function callWhenDone<T>(promise: Promise<T>, callback: Web3Callback<T>): void {
   promise.then(result => callback(null, result), error => callback(error));
 }
 
+/**
+ * Converts a hex string to a string of a decimal number. Works even with
+ * numbers so large that they cannot fit into a double without losing precision.
+ */
+function hexToDecimal(hex: string): string {
+  if (hex.startsWith("0x")) {
+    return hexToDecimal(hex.slice(2));
+  }
+  // https://stackoverflow.com/a/21675915/2695248
+  const digits = [0];
+  for (let i = 0; i < hex.length; i += 1) {
+    let carry = parseInt(hex.charAt(i), 16);
+    for (let j = 0; j < digits.length; j += 1) {
+      digits[j] = digits[j] * 16 + carry;
+      carry = (digits[j] / 10e16) | 0;
+      digits[j] %= 10e16;
+    }
+    while (carry > 0) {
+      digits.push(carry % 10e16);
+      carry = (carry / 10e16) | 0;
+    }
+  }
+  return digits.reverse().join("");
+}
+
 function noop(): void {
   // Nothing.
+}
+
+function identity<T>(x: T): T {
+  return x;
 }

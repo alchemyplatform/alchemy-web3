@@ -141,6 +141,13 @@ Your provider should expose at least one of `sendAsync()` or `send()`, as
 specified in [EIP
 1193](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1193.md).
 
+You may swap out the custom provider at any time by calling the
+`setWriteProvider()` method:
+
+```ts
+web3.setWriteProvider(provider);
+```
+
 ## Alchemy Higher-Order APIs
 
 The produced client also grants easy access to Alchemy's higher-order APIs.

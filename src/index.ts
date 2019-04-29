@@ -21,6 +21,7 @@ export type SendFunction = (payload: any, callback: any) => void;
 
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
+  setWriteProvider(provider: Provider): void;
 }
 
 export interface AlchemyMethods {
@@ -77,13 +78,20 @@ export function createAlchemyWeb3(
   alchemyUrl: string,
   { writeProvider = getWindowProvider() }: AlchemyWeb3Config = {},
 ): AlchemyWeb3 {
+  let currentProvider = writeProvider;
   function sendAsync(
     payload: JsonRpcPayload,
     callback: Web3Callback<JsonRPCResponse>,
   ): void {
-    callWhenDone(promisedSend(payload, alchemyUrl, writeProvider), callback);
+    callWhenDone(promisedSend(payload, alchemyUrl, currentProvider), callback);
   }
   const alchemyWeb3 = new Web3({ sendAsync } as any) as AlchemyWeb3;
+  alchemyWeb3.setProvider = () => {
+    throw new Error(
+      "setProvider is not supported in Alchemy Web3. To change the provider used for writes, use setWriteProvider() instead.",
+    );
+  };
+  alchemyWeb3.setWriteProvider = provider => (currentProvider = provider);
   alchemyWeb3.alchemy = {
     getTokenBalances: (address, contractAddresses, callback) =>
       callAlchemyMethod({

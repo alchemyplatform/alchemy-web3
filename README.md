@@ -134,7 +134,7 @@ options object when creating your Alchemy Web3 instance using the
 `writeProvider` key:
 
 ```ts
-const web3 = createAlchemyWeb3(ALCHEMY_URL: { writeProvider: provider });
+const web3 = createAlchemyWeb3(ALCHEMY_URL, { writeProvider: provider });
 ```
 
 Your provider should expose at least one of `sendAsync()` or `send()`, as

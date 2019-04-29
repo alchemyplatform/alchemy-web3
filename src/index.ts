@@ -5,6 +5,20 @@ import { JsonRPCRequest, JsonRPCResponse } from "web3/providers";
 
 const { fetch, Headers } = fetchPonyfill();
 
+export interface AlchemyWeb3Config {
+  writeProvider?: Provider;
+}
+
+export type Provider =
+  | {
+      sendAsync: SendFunction;
+    }
+  | {
+      send: SendFunction;
+    };
+
+export type SendFunction = (payload: any, callback: any) => void;
+
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
 }
@@ -59,12 +73,15 @@ const ALCHEMY_HEADERS = new Headers({
   "Content-Type": "application/json",
 });
 
-export function createAlchemyWeb3(alchemyUrl: string): AlchemyWeb3 {
+export function createAlchemyWeb3(
+  alchemyUrl: string,
+  { writeProvider = getWindowProvider() }: AlchemyWeb3Config = {},
+): AlchemyWeb3 {
   function sendAsync(
     payload: JsonRpcPayload,
     callback: Web3Callback<JsonRPCResponse>,
   ): void {
-    callWhenDone(promisedSend(payload, alchemyUrl), callback);
+    callWhenDone(promisedSend(payload, alchemyUrl, writeProvider), callback);
   }
   const alchemyWeb3 = new Web3({ sendAsync } as any) as AlchemyWeb3;
   alchemyWeb3.alchemy = {
@@ -83,20 +100,28 @@ export function createAlchemyWeb3(alchemyUrl: string): AlchemyWeb3 {
 async function promisedSend(
   payload: JsonRpcPayload,
   alchemyUrl: string,
+  writeProvider: Provider | undefined,
 ): Promise<JsonRPCResponse> {
   if (ALCHEMY_DISALLOWED_METHODS.indexOf(payload.method) === -1) {
     try {
       return await sendToAlchemy(payload, alchemyUrl);
     } catch (alchemyError) {
-      // Fallback to Metamask, but if both fail throw the error from Alchemy.
+      // Fallback to write provider, but if both fail throw the error from
+      // Alchemy.
+      if (!writeProvider) {
+        throw alchemyError;
+      }
       try {
-        return await sendToMetamaskProvider(payload);
+        return await sendToProvider(payload, writeProvider);
       } catch {
         throw alchemyError;
       }
     }
   } else {
-    return sendToMetamaskProvider(payload);
+    if (!writeProvider) {
+      throw new Error(`No provider available for method "${payload.method}"`);
+    }
+    return sendToProvider(payload, writeProvider);
   }
 }
 
@@ -112,16 +137,22 @@ async function sendToAlchemy(
   return response.json();
 }
 
-function sendToMetamaskProvider(
+function sendToProvider(
   payload: JsonRpcPayload,
+  provider: Provider,
 ): Promise<JsonRPCResponse> {
-  const provider = typeof window !== "undefined" ? window.ethereum : undefined;
-  if (!provider) {
-    return Promise.reject(
-      `No Ethereum provider found for method "${payload.method}"`,
+  const anyProvider: any = provider;
+  if (anyProvider.sendAsync) {
+    return promiseFromCallback(callback =>
+      anyProvider.sendAsync(payload, callback),
     );
+  } else {
+    return promiseFromCallback(callback => anyProvider.send(payload, callback));
   }
-  return promiseFromCallback(callback => provider.sendAsync(payload, callback));
+}
+
+function getWindowProvider(): Provider | undefined {
+  return typeof window !== "undefined" ? window.ethereum : undefined;
 }
 
 interface CallAlchemyMethodParams<T> {

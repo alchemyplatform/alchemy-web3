@@ -12,7 +12,8 @@ a client matching that of web3.js, but brings two advantages to make use of
 - **Uses Alchemy or an injected provider as needed.** Most requests will be sent
   through Alchemy, but requests involving signing and sending transactions are
   sent via a browser provider like [Metamask](https://metamask.io/) or [Trust
-  Wallet](https://trustwallet.com) if the user has it installed.
+  Wallet](https://trustwallet.com) if the user has it installed, or via a
+  custom provider specified in options.
 
 - **Easy access to Alchemy's higher-order APIs.** The client exposes methods to
   call Alchemy's exclusive features.
@@ -124,6 +125,21 @@ Note that doing so will display a Metamask dialog to the user if they have not
 already seen it and accepted, so you may choose to wait to enable Metamask until
 the user is about to perform an action which requires it. This is also why
 Alchemy Web3 will not automatically enable Metamask on page load.
+
+### With a custom provider
+
+You may also choose to bring your own provider for writes rather than relying on
+one being present in the browser environment. To do so, pass your provider
+options object when creating your Alchemy Web3 instance using the
+`writeProvider` key:
+
+```ts
+const web3 = createAlchemyWeb3(ALCHEMY_URL: { writeProvider: provider });
+```
+
+Your provider should expose at least one of `sendAsync()` or `send()`, as
+specified in [EIP
+1193](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1193.md).
 
 ## Alchemy Higher-Order APIs
 

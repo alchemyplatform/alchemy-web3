@@ -25,12 +25,24 @@ export interface AlchemyWeb3 extends Web3 {
 }
 
 export interface AlchemyMethods {
+  getTokenAllowance(
+    params: TokenAllowanceParams,
+    callback?: Web3Callback<TokenAllowanceResponse>,
+  ): Promise<TokenAllowanceResponse>;
   getTokenBalances(
     address: string,
     contractAddresses: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
 }
+
+export interface TokenAllowanceParams {
+  contract: string;
+  owner: string;
+  spender: string;
+}
+
+export type TokenAllowanceResponse = string;
 
 export interface TokenBalancesResponse {
   address: string;
@@ -93,6 +105,13 @@ export function createAlchemyWeb3(
   };
   alchemyWeb3.setWriteProvider = provider => (currentProvider = provider);
   alchemyWeb3.alchemy = {
+    getTokenAllowance: (params: TokenAllowanceParams, callback) =>
+      callAlchemyMethod({
+        alchemyUrl,
+        callback,
+        params: [params],
+        method: "alchemy_getTokenAllowance",
+      }),
     getTokenBalances: (address, contractAddresses, callback) =>
       callAlchemyMethod({
         alchemyUrl,

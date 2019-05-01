@@ -25,12 +25,28 @@ export interface AlchemyWeb3 extends Web3 {
 }
 
 export interface AlchemyMethods {
+  getTokenAllowance(
+    params: TokenAllowanceParams,
+    callback?: Web3Callback<TokenAllowanceResponse>,
+  ): Promise<TokenAllowanceResponse>;
   getTokenBalances(
     address: string,
     contractAddresses: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
+  getTokenMetadata(
+    address: string,
+    callback?: Web3Callback<TokenMetadataResponse>,
+  ): Promise<TokenMetadataResponse>;
 }
+
+export interface TokenAllowanceParams {
+  contract: string;
+  owner: string;
+  spender: string;
+}
+
+export type TokenAllowanceResponse = string;
 
 export interface TokenBalancesResponse {
   address: string;
@@ -49,6 +65,13 @@ export interface TokenBalanceFailure {
   address: string;
   tokenBalance: null;
   error: string;
+}
+
+export interface TokenMetadataResponse {
+  decimals: number | null;
+  logo: string | null;
+  name: string | null;
+  symbol: string | null;
 }
 
 export type Web3Callback<T> = (error: Error | null, result?: T) => void;
@@ -93,6 +116,13 @@ export function createAlchemyWeb3(
   };
   alchemyWeb3.setWriteProvider = provider => (currentProvider = provider);
   alchemyWeb3.alchemy = {
+    getTokenAllowance: (params: TokenAllowanceParams, callback) =>
+      callAlchemyMethod({
+        alchemyUrl,
+        callback,
+        params: [params],
+        method: "alchemy_getTokenAllowance",
+      }),
     getTokenBalances: (address, contractAddresses, callback) =>
       callAlchemyMethod({
         alchemyUrl,
@@ -100,6 +130,13 @@ export function createAlchemyWeb3(
         method: "alchemy_getTokenBalances",
         params: [address, contractAddresses],
         processResponse: processTokenBalanceResponse,
+      }),
+    getTokenMetadata: (address, callback) =>
+      callAlchemyMethod({
+        alchemyUrl,
+        callback,
+        params: [address],
+        method: "alchemy_getTokenMetadata",
       }),
   };
   return alchemyWeb3;

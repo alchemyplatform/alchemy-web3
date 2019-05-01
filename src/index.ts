@@ -34,6 +34,10 @@ export interface AlchemyMethods {
     contractAddresses: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
+  getTokenMetadata(
+    address: string,
+    callback?: Web3Callback<TokenMetadataResponse>,
+  ): Promise<TokenMetadataResponse>;
 }
 
 export interface TokenAllowanceParams {
@@ -61,6 +65,13 @@ export interface TokenBalanceFailure {
   address: string;
   tokenBalance: null;
   error: string;
+}
+
+export interface TokenMetadataResponse {
+  decimals: number | null;
+  logo: string | null;
+  name: string | null;
+  symbol: string | null;
 }
 
 export type Web3Callback<T> = (error: Error | null, result?: T) => void;
@@ -119,6 +130,13 @@ export function createAlchemyWeb3(
         method: "alchemy_getTokenBalances",
         params: [address, contractAddresses],
         processResponse: processTokenBalanceResponse,
+      }),
+    getTokenMetadata: (address, callback) =>
+      callAlchemyMethod({
+        alchemyUrl,
+        callback,
+        params: [address],
+        method: "alchemy_getTokenMetadata",
       }),
   };
   return alchemyWeb3;

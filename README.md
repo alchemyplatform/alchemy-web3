@@ -15,7 +15,7 @@ a client matching that of web3.js, but brings two advantages to make use of
   Wallet](https://trustwallet.com) if the user has it installed, or via a
   custom provider specified in options.
 
-- **Easy access to Alchemy's higher-order APIs.** The client exposes methods to
+- **Easy access to Alchemy's higher level API.** The client exposes methods to
   call Alchemy's exclusive features.
 
 Alchemy Web3 is designed to require minimal configuration so you can start using
@@ -148,19 +148,35 @@ You may swap out the custom provider at any time by calling the
 web3.setWriteProvider(provider);
 ```
 
-## Alchemy Higher-Order APIs
+## Alchemy Higher Level API
 
-The produced client also grants easy access to Alchemy's higher-order APIs.
-Currently, this is the following method.
+The produced client also grants easy access to Alchemy's [higher level API](https://docs.alchemyapi.io/docs/higher-level-api).
 
-### `web3.alchemy.tokenBalances(address, contractAddresses)`
+
+### `web3.alchemy.getTokenAllowance({contract, owner, spender})`
 
 Returns token balances for a specific address given a list of contracts.
 
 **Parameters:**
 
-- `address`: The address for which token balances will be checked.
-- `contractAddresses`: An array of contract addresses.
+An object with the following fields:
+- `contract`: The address of the token contract.
+- `owner`: The address of the token owner.
+- `spender`: The address of the token spender.
+
+**Returns:**
+
+The allowance amount, as a string representing a base-10 number.
+
+
+### `web3.alchemy.getTokenBalances(address, contractAddresses)`
+
+Returns token balances for a specific address given a list of contracts.
+
+**Parameters:**
+
+1. `address`: The address for which token balances will be checked.
+2. `contractAddresses`: An array of contract addresses.
 
 **Returns:**
 
@@ -172,5 +188,26 @@ An object with the following fields:
   - `tokenBalance`: The balance of the contract, as a string representing a
     base-10 number.
   - `error`: An error string. One of this or `tokenBalance` will be `null`.
+  
+
+### `web3.alchemy.getTokenMetadata(address)`
+
+Returns metadata (name, symbol, decimals, logo) for a given token contract address.
+
+**Parameters:**
+
+`address`: The address of the token contract.
+
+**Returns:**
+
+An object with the following fields:
+
+- `name`: The token's name. `null` if not defined in the contract and not available from other sources.
+- `symbol`: The token's symbol. `null` if not defined in the contract and not available from other sources.
+- `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
+- `logo`: URL of the token's logo image. `null` if not available.
+
+
+<br/>
 
 Copyright © 2019 Alchemy Insights Inc.

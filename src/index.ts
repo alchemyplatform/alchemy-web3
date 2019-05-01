@@ -188,11 +188,9 @@ function sendToProvider(
 ): Promise<JsonRPCResponse> {
   const anyProvider: any = provider;
   if (anyProvider.sendAsync) {
-    return promiseFromCallback(callback =>
-      anyProvider.sendAsync(payload, callback),
-    );
+    return promisify(callback => anyProvider.sendAsync(payload, callback));
   } else {
-    return promiseFromCallback(callback => anyProvider.send(payload, callback));
+    return promisify(callback => anyProvider.send(payload, callback));
   }
 }
 
@@ -243,9 +241,7 @@ function processTokenBalanceResponse(
  * Helper for converting functions which take a callback as their final argument
  * to functions which return a promise.
  */
-function promiseFromCallback<T>(
-  f: (callback: Web3Callback<T>) => void,
-): Promise<T> {
+function promisify<T>(f: (callback: Web3Callback<T>) => void): Promise<T> {
   return new Promise((resolve, reject) =>
     f((error, result) => {
       if (error != null) {

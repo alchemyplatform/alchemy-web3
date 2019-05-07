@@ -6,7 +6,7 @@ Web3 client extended with Alchemy and browser provider integration.
 
 Alchemy Web3 provides website authors with a drop-in replacement for the
 [web3.js](https://github.com/ethereum/web3.js) Ethereum API client. It produces
-a client matching that of web3.js, but brings two advantages to make use of
+a client matching that of web3.js, but brings three advantages to make use of
 [Alchemy API](https://alchemyapi.io):
 
 - **Uses Alchemy or an injected provider as needed.** Most requests will be sent
@@ -17,6 +17,10 @@ a client matching that of web3.js, but brings two advantages to make use of
 
 - **Easy access to Alchemy's higher level API.** The client exposes methods to
   call Alchemy's exclusive features.
+
+- **Automatically retries on rate limited requests.** If Alchemy returns a 429
+  (rate limited) response, automatically retry after a short delay. This
+  behavior is configurable.
 
 Alchemy Web3 is designed to require minimal configuration so you can start using
 it in your app right away.
@@ -43,14 +47,14 @@ have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
 ### Basic Usage
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
-it your Alchemy app's URL:
+it your Alchemy app's URL and optionally a configuration object:
 
 ```ts
 import { createAlchemyWeb3 } from "@alch/alchemy-web3";
 
 const ALCHEMY_URL = "https://eth-mainnet.alchemyapi.io/jsonrpc/<api-key>";
 
-const web3 = createAlchemyWeb3(ALCHEMY_URL);
+const web3 = createAlchemyWeb3(ALCHEMY_URL /* optional config */);
 ```
 
 You can use any of the methods described in the [web3.js
@@ -152,7 +156,6 @@ web3.setWriteProvider(provider);
 
 The produced client also grants easy access to Alchemy's [higher level API](https://docs.alchemyapi.io/docs/higher-level-api).
 
-
 ### `web3.alchemy.getTokenAllowance({contract, owner, spender})`
 
 Returns token balances for a specific address given a list of contracts.
@@ -160,6 +163,7 @@ Returns token balances for a specific address given a list of contracts.
 **Parameters:**
 
 An object with the following fields:
+
 - `contract`: The address of the token contract.
 - `owner`: The address of the token owner.
 - `spender`: The address of the token spender.
@@ -167,7 +171,6 @@ An object with the following fields:
 **Returns:**
 
 The allowance amount, as a string representing a base-10 number.
-
 
 ### `web3.alchemy.getTokenBalances(address, contractAddresses)`
 
@@ -184,11 +187,11 @@ An object with the following fields:
 
 - `address`: The address for which token balances were checked.
 - `tokenBalances`: An array of token balance objects. Each object contains:
+
   - `contractAddress`: The address of the contract.
   - `tokenBalance`: The balance of the contract, as a string representing a
     base-10 number.
   - `error`: An error string. One of this or `tokenBalance` will be `null`.
-  
 
 ### `web3.alchemy.getTokenMetadata(address)`
 
@@ -207,6 +210,25 @@ An object with the following fields:
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
 
+## Automatic Retries
+
+If Alchemy Web3 encounters a rate limited response, it will automatically retry
+the request after a short delay. This behavior can be configured with the
+following options. To disable it entirely, set `maxRetries` to 0.
+
+### `maxRetries`
+
+The number of times the client will attempt to resend a rate limited request before giving up. Default: 3.
+
+### `retryInterval`
+
+The minimum time waited between consecutive retries, in milliseconds. Default: 1000.
+
+### `retryJitter`
+
+A random amount of time is added to the retry delay to help avoid additional
+rate errors caused by too many concurrent connections, chosen as a number of
+milliseconds between 0 and this value. Default: 250.
 
 <br/>
 

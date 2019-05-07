@@ -5,9 +5,19 @@ import { JsonRPCRequest, JsonRPCResponse } from "web3/providers";
 
 const { fetch, Headers } = fetchPonyfill();
 
+const RATE_LIMIT_STATUS = 429;
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_INTERVAL = 1000;
+const DEFAULT_RETRY_JITTER = 250;
+
 export interface AlchemyWeb3Config {
-  writeProvider?: Provider;
+  writeProvider?: Provider | null;
+  maxRetries?: number;
+  retryInterval?: number;
+  retryJitter?: number;
 }
+
+type FullConfig = { [K in keyof AlchemyWeb3Config]-?: AlchemyWeb3Config[K] };
 
 export type Provider =
   | {
@@ -99,14 +109,18 @@ const ALCHEMY_HEADERS = new Headers({
 
 export function createAlchemyWeb3(
   alchemyUrl: string,
-  { writeProvider = getWindowProvider() }: AlchemyWeb3Config = {},
+  config: AlchemyWeb3Config,
 ): AlchemyWeb3 {
-  let currentProvider = writeProvider;
+  const fullConfig = fillInConfigDefaults(config);
+  let currentProvider = fullConfig.writeProvider;
   function sendAsync(
     payload: JsonRpcPayload,
     callback: Web3Callback<JsonRPCResponse>,
   ): void {
-    callWhenDone(promisedSend(payload, alchemyUrl, currentProvider), callback);
+    callWhenDone(
+      promisedSend(payload, alchemyUrl, currentProvider, fullConfig),
+      callback,
+    );
   }
   const alchemyWeb3 = new Web3({ sendAsync } as any) as AlchemyWeb3;
   alchemyWeb3.setProvider = () => {
@@ -122,6 +136,7 @@ export function createAlchemyWeb3(
         callback,
         params: [params],
         method: "alchemy_getTokenAllowance",
+        config: fullConfig,
       }),
     getTokenBalances: (address, contractAddresses, callback) =>
       callAlchemyMethod({
@@ -130,6 +145,7 @@ export function createAlchemyWeb3(
         method: "alchemy_getTokenBalances",
         params: [address, contractAddresses],
         processResponse: processTokenBalanceResponse,
+        config: fullConfig,
       }),
     getTokenMetadata: (address, callback) =>
       callAlchemyMethod({
@@ -137,19 +153,30 @@ export function createAlchemyWeb3(
         callback,
         params: [address],
         method: "alchemy_getTokenMetadata",
+        config: fullConfig,
       }),
   };
   return alchemyWeb3;
 }
 
+function fillInConfigDefaults({
+  writeProvider = getWindowProvider(),
+  maxRetries = DEFAULT_MAX_RETRIES,
+  retryInterval = DEFAULT_RETRY_INTERVAL,
+  retryJitter = DEFAULT_RETRY_JITTER,
+}: AlchemyWeb3Config): FullConfig {
+  return { writeProvider, maxRetries, retryInterval, retryJitter };
+}
+
 async function promisedSend(
   payload: JsonRpcPayload,
   alchemyUrl: string,
-  writeProvider: Provider | undefined,
+  writeProvider: Provider | null,
+  config: FullConfig,
 ): Promise<JsonRPCResponse> {
   if (ALCHEMY_DISALLOWED_METHODS.indexOf(payload.method) === -1) {
     try {
-      return await sendToAlchemy(payload, alchemyUrl);
+      return await sendToAlchemyWithRetries(payload, alchemyUrl, config);
     } catch (alchemyError) {
       // Fallback to write provider, but if both fail throw the error from
       // Alchemy.
@@ -170,16 +197,31 @@ async function promisedSend(
   }
 }
 
-async function sendToAlchemy(
+async function sendToAlchemyWithRetries(
   payload: JsonRpcPayload,
   alchemyUrl: string,
+  { maxRetries, retryInterval, retryJitter }: FullConfig,
 ): Promise<JsonRPCResponse> {
-  const response = await fetch(alchemyUrl, {
+  let lastResponse: Response;
+  for (let i = 0; i < maxRetries + 1; i++) {
+    lastResponse = await sendToAlchemyOnce(payload, alchemyUrl);
+    if (lastResponse.status !== RATE_LIMIT_STATUS) {
+      return lastResponse.json();
+    }
+    await delay(retryInterval + ((retryJitter * Math.random()) | 0));
+  }
+  return lastResponse!.json();
+}
+
+function sendToAlchemyOnce(
+  payload: JsonRpcPayload,
+  alchemyUrl: string,
+): Promise<Response> {
+  return fetch(alchemyUrl, {
     method: "POST",
     headers: ALCHEMY_HEADERS,
     body: JSON.stringify(payload),
   });
-  return response.json();
 }
 
 function sendToProvider(
@@ -194,14 +236,15 @@ function sendToProvider(
   }
 }
 
-function getWindowProvider(): Provider | undefined {
-  return typeof window !== "undefined" ? window.ethereum : undefined;
+function getWindowProvider(): Provider | null {
+  return typeof window !== "undefined" ? window.ethereum : null;
 }
 
 interface CallAlchemyMethodParams<T> {
   method: string;
   params: any[];
   alchemyUrl: string;
+  config: FullConfig;
   callback?: Web3Callback<T>;
   processResponse?(response: any): T;
 }
@@ -210,12 +253,17 @@ function callAlchemyMethod<T>({
   method,
   params,
   alchemyUrl,
+  config,
   callback = noop,
   processResponse = identity,
 }: CallAlchemyMethodParams<T>): Promise<T> {
   const promise = (async () => {
     const payload: JsonRPCRequest = { method, params, jsonrpc: "2.0", id: 0 };
-    const { error, result } = await sendToAlchemy(payload, alchemyUrl);
+    const { error, result } = await sendToAlchemyWithRetries(
+      payload,
+      alchemyUrl,
+      config,
+    );
     if (error != null) {
       throw new Error(error);
     }
@@ -259,6 +307,10 @@ function promisify<T>(f: (callback: Web3Callback<T>) => void): Promise<T> {
  */
 function callWhenDone<T>(promise: Promise<T>, callback: Web3Callback<T>): void {
   promise.then(result => callback(null, result), error => callback(error));
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**

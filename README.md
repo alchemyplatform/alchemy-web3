@@ -54,7 +54,7 @@ import { createAlchemyWeb3 } from "@alch/alchemy-web3";
 
 const ALCHEMY_URL = "https://eth-mainnet.alchemyapi.io/jsonrpc/<api-key>";
 
-const web3 = createAlchemyWeb3(ALCHEMY_URL /* optional config */);
+const web3 = createAlchemyWeb3(ALCHEMY_URL);
 ```
 
 You can use any of the methods described in the [web3.js
@@ -133,9 +133,8 @@ Alchemy Web3 will not automatically enable Metamask on page load.
 ### With a custom provider
 
 You may also choose to bring your own provider for writes rather than relying on
-one being present in the browser environment. To do so, pass your provider
-options object when creating your Alchemy Web3 instance using the
-`writeProvider` key:
+one being present in the browser environment. To do so, use the `writeProvider`
+option when creating your client:
 
 ```ts
 const web3 = createAlchemyWeb3(ALCHEMY_URL, { writeProvider: provider });
@@ -151,6 +150,29 @@ You may swap out the custom provider at any time by calling the
 ```ts
 web3.setWriteProvider(provider);
 ```
+
+You may also disable the write provider entirely by passing a value of `null`.
+
+### Automatic Retries
+
+If Alchemy Web3 encounters a rate limited response, it will automatically retry
+the request after a short delay. This behavior can be configured by passing the
+following options when creating your client. To disable retries, set
+`maxRetries` to 0.
+
+#### `maxRetries`
+
+The number of times the client will attempt to resend a rate limited request before giving up. Default: 3.
+
+#### `retryInterval`
+
+The minimum time waited between consecutive retries, in milliseconds. Default: 1000.
+
+#### `retryJitter`
+
+A random amount of time is added to the retry delay to help avoid additional
+rate errors caused by too many concurrent connections, chosen as a number of
+milliseconds between 0 and this value. Default: 250.
 
 ## Alchemy Higher Level API
 
@@ -187,7 +209,6 @@ An object with the following fields:
 
 - `address`: The address for which token balances were checked.
 - `tokenBalances`: An array of token balance objects. Each object contains:
-
   - `contractAddress`: The address of the contract.
   - `tokenBalance`: The balance of the contract, as a string representing a
     base-10 number.
@@ -209,26 +230,6 @@ An object with the following fields:
 - `symbol`: The token's symbol. `null` if not defined in the contract and not available from other sources.
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
-
-## Automatic Retries
-
-If Alchemy Web3 encounters a rate limited response, it will automatically retry
-the request after a short delay. This behavior can be configured with the
-following options. To disable it entirely, set `maxRetries` to 0.
-
-### `maxRetries`
-
-The number of times the client will attempt to resend a rate limited request before giving up. Default: 3.
-
-### `retryInterval`
-
-The minimum time waited between consecutive retries, in milliseconds. Default: 1000.
-
-### `retryJitter`
-
-A random amount of time is added to the retry delay to help avoid additional
-rate errors caused by too many concurrent connections, chosen as a number of
-milliseconds between 0 and this value. Default: 250.
 
 <br/>
 

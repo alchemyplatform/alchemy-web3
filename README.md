@@ -6,7 +6,7 @@ Web3 client extended with Alchemy and browser provider integration.
 
 Alchemy Web3 provides website authors with a drop-in replacement for the
 [web3.js](https://github.com/ethereum/web3.js) Ethereum API client. It produces
-a client matching that of web3.js, but brings two advantages to make use of
+a client matching that of web3.js, but brings three advantages to make use of
 [Alchemy API](https://alchemyapi.io):
 
 - **Uses Alchemy or an injected provider as needed.** Most requests will be sent
@@ -17,6 +17,10 @@ a client matching that of web3.js, but brings two advantages to make use of
 
 - **Easy access to Alchemy's higher level API.** The client exposes methods to
   call Alchemy's exclusive features.
+
+- **Automatically retries on rate limited requests.** If Alchemy returns a 429
+  (rate limited) response, automatically retry after a short delay. This
+  behavior is configurable.
 
 Alchemy Web3 is designed to require minimal configuration so you can start using
 it in your app right away.
@@ -43,7 +47,7 @@ have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
 ### Basic Usage
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
-it your Alchemy app's URL:
+it your Alchemy app's URL and optionally a configuration object:
 
 ```ts
 import { createAlchemyWeb3 } from "@alch/alchemy-web3";
@@ -129,9 +133,8 @@ Alchemy Web3 will not automatically enable Metamask on page load.
 ### With a custom provider
 
 You may also choose to bring your own provider for writes rather than relying on
-one being present in the browser environment. To do so, pass your provider
-options object when creating your Alchemy Web3 instance using the
-`writeProvider` key:
+one being present in the browser environment. To do so, use the `writeProvider`
+option when creating your client:
 
 ```ts
 const web3 = createAlchemyWeb3(ALCHEMY_URL, { writeProvider: provider });
@@ -148,10 +151,32 @@ You may swap out the custom provider at any time by calling the
 web3.setWriteProvider(provider);
 ```
 
+You may also disable the write provider entirely by passing a value of `null`.
+
+### Automatic Retries
+
+If Alchemy Web3 encounters a rate limited response, it will automatically retry
+the request after a short delay. This behavior can be configured by passing the
+following options when creating your client. To disable retries, set
+`maxRetries` to 0.
+
+#### `maxRetries`
+
+The number of times the client will attempt to resend a rate limited request before giving up. Default: 3.
+
+#### `retryInterval`
+
+The minimum time waited between consecutive retries, in milliseconds. Default: 1000.
+
+#### `retryJitter`
+
+A random amount of time is added to the retry delay to help avoid additional
+rate errors caused by too many concurrent connections, chosen as a number of
+milliseconds between 0 and this value. Default: 250.
+
 ## Alchemy Higher Level API
 
 The produced client also grants easy access to Alchemy's [higher level API](https://docs.alchemyapi.io/docs/higher-level-api).
-
 
 ### `web3.alchemy.getTokenAllowance({contract, owner, spender})`
 
@@ -160,6 +185,7 @@ Returns token balances for a specific address given a list of contracts.
 **Parameters:**
 
 An object with the following fields:
+
 - `contract`: The address of the token contract.
 - `owner`: The address of the token owner.
 - `spender`: The address of the token spender.
@@ -167,7 +193,6 @@ An object with the following fields:
 **Returns:**
 
 The allowance amount, as a string representing a base-10 number.
-
 
 ### `web3.alchemy.getTokenBalances(address, contractAddresses)`
 
@@ -188,7 +213,6 @@ An object with the following fields:
   - `tokenBalance`: The balance of the contract, as a string representing a
     base-10 number.
   - `error`: An error string. One of this or `tokenBalance` will be `null`.
-  
 
 ### `web3.alchemy.getTokenMetadata(address)`
 
@@ -206,7 +230,6 @@ An object with the following fields:
 - `symbol`: The token's symbol. `null` if not defined in the contract and not available from other sources.
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
-
 
 <br/>
 

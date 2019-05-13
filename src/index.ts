@@ -2,6 +2,7 @@ import fetchPonyfill from "fetch-ponyfill";
 import Web3 from "web3";
 import { JsonRpcPayload } from "web3-providers";
 import { JsonRPCRequest, JsonRPCResponse } from "web3/providers";
+import { VERSION } from "./version";
 
 const { fetch, Headers } = fetchPonyfill();
 
@@ -105,6 +106,7 @@ const ALCHEMY_DISALLOWED_METHODS: string[] = [
 const ALCHEMY_HEADERS = new Headers({
   Accept: "application/json",
   "Content-Type": "application/json",
+  "Alchemy-Web3-Version": VERSION,
 });
 
 export function createAlchemyWeb3(

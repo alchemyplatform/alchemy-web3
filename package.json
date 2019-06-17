@@ -62,8 +62,9 @@
   },
   "dependencies": {
     "@types/web3": "^1.0.18",
+    "assert-never": "^1.2.0",
     "fetch-ponyfill": "^6.0.2",
-    "web3": "^1.0.0-beta.55",
-    "web3-providers": "^1.0.0-beta.55"
+    "sturdy-websocket": "^0.1.11",
+    "web3": "^1.0.0-beta.55"
   }
 }

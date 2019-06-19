@@ -1,23 +1,35 @@
 import SturdyWebSocket from "sturdy-websocket";
-import { JsonRpcId, JsonRpcResponse } from "../types";
+import {
+  isResponse,
+  JsonRpcId,
+  SingleOrBatchRequest,
+  SingleOrBatchResponse,
+  WebSocketMessage,
+} from "../types";
 import { AlchemySendFunction, AlchemySendResult } from "./alchemySend";
 
-export function makeWebSocketSender(url: string): AlchemySendFunction {
+export function makeWebSocketSender(ws: SturdyWebSocket): AlchemySendFunction {
   let resolveFunctionsById: Map<
     JsonRpcId,
     (response: AlchemySendResult) => void
   > = new Map();
-  const ws = new SturdyWebSocket(url);
   ws.addEventListener("message", message => {
-    const response: JsonRpcResponse = JSON.parse(message.data);
-    const { id } = response;
+    const response: WebSocketMessage = JSON.parse(message.data);
+    if (!isResponse(response)) {
+      return;
+    }
+    const id = getIdFromResponse(response);
+    if (id === undefined) {
+      return;
+    }
     const resolve = resolveFunctionsById.get(id);
     if (resolve) {
       resolveFunctionsById.delete(id);
-      // Cast to any needed because Web3's type for the error field is incorrect
-      // according to the JSON-RPC spec. The error field should be an object,
-      // not a string.
-      if (response.error && (response.error as any).code === 429) {
+      if (
+        !Array.isArray(response) &&
+        response.error &&
+        response.error.code === 429
+      ) {
         resolve({ type: "rateLimit" });
       } else {
         resolve({ response, type: "jsonrpc" });
@@ -38,7 +50,7 @@ export function makeWebSocketSender(url: string): AlchemySendFunction {
 
   return request =>
     new Promise(resolve => {
-      const { id } = request;
+      const id = getIdFromRequest(request);
       if (id !== undefined) {
         const existingResolve = resolveFunctionsById.get(id);
         if (existingResolve) {
@@ -54,4 +66,26 @@ export function makeWebSocketSender(url: string): AlchemySendFunction {
       }
       ws.send(JSON.stringify(request));
     });
+}
+
+function getIdFromRequest(
+  request: SingleOrBatchRequest,
+): JsonRpcId | undefined {
+  if (!Array.isArray(request)) {
+    return request.id;
+  }
+  // In a batch, find the first payload with defined id.
+  const payload = request.find(p => p.id !== undefined) || undefined;
+  return payload && payload.id;
+}
+
+function getIdFromResponse(
+  response: SingleOrBatchResponse,
+): JsonRpcId | undefined {
+  if (!Array.isArray(response)) {
+    return response.id;
+  }
+  // In a batch, find the first payload with defined id.
+  const payload = response.find(p => p.id !== undefined) || undefined;
+  return payload && payload.id;
 }

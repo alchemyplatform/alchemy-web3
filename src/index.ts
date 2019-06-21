@@ -111,7 +111,7 @@ const ALCHEMY_HEADERS = new Headers({
 
 export function createAlchemyWeb3(
   alchemyUrl: string,
-  config: AlchemyWeb3Config,
+  config?: AlchemyWeb3Config,
 ): AlchemyWeb3 {
   const fullConfig = fillInConfigDefaults(config);
   let currentProvider = fullConfig.writeProvider;
@@ -166,7 +166,7 @@ function fillInConfigDefaults({
   maxRetries = DEFAULT_MAX_RETRIES,
   retryInterval = DEFAULT_RETRY_INTERVAL,
   retryJitter = DEFAULT_RETRY_JITTER,
-}: AlchemyWeb3Config): FullConfig {
+}: AlchemyWeb3Config = {}): FullConfig {
   return { writeProvider, maxRetries, retryInterval, retryJitter };
 }
 

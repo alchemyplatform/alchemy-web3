@@ -24,7 +24,7 @@ export function makeAlchemyContext(
     const provider = makeAlchemyHttpProvider(sendPayload);
     return { provider, setWriteProvider };
   } else if (/^wss?:\/\//.test(url)) {
-    const ws = new SturdyWebSocket(url);
+    const ws = new SturdyWebSocket(url, { debug: true });
     const alchemySend = makeWebSocketSender(ws);
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,

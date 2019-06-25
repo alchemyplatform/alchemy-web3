@@ -13,5 +13,5 @@
     "strict": true,
     "target": "es5"
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "__tests__/**/*"]
 }

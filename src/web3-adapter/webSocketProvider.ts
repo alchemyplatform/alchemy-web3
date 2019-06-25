@@ -119,9 +119,8 @@ export class AlchemyWebSocketProvider extends EventEmitter
     const method = subscribeMethod;
     const params = [subscriptionMethod, ...parameters];
     const needsStartingBlockNumber =
-      (subscribeMethod === "eth_subscribe" &&
-        subscriptionMethod === "newHeads") ||
-      subscriptionMethod === "logs";
+      subscribeMethod === "eth_subscribe" &&
+      (subscriptionMethod === "newHeads" || subscriptionMethod === "logs");
     const startingBlockNumber = needsStartingBlockNumber
       ? await this.getBlockNumber()
       : undefined;

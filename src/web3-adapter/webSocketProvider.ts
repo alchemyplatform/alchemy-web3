@@ -4,8 +4,10 @@ import {
   Backfiller,
   dedupeLogs,
   dedupeNewHeads,
+  LogsEvent,
   LogsSubscriptionFilter,
   makeBackfiller,
+  NewHeadsEvent,
 } from "../subscriptions/subscriptionBackfill";
 import {
   isSubscriptionEvent,
@@ -51,11 +53,31 @@ interface VirtualSubscription {
   physicalId: string;
   method: string;
   params: any[];
-  startingBlockNumber: number;
-  sentEvents: any[];
   isBackfilling: boolean;
+  startingBlockNumber: number | undefined;
+  sentEvents: any[];
   backfillBuffer: any[];
 }
+
+interface NewHeadsSubscription extends VirtualSubscription {
+  method: "eth_subscribe";
+  params: ["newHeads"];
+  isBackfilling: boolean;
+  startingBlockNumber: number;
+  sentEvents: NewHeadsEvent[];
+  backfillBuffer: NewHeadsEvent[];
+}
+
+interface LogsSubscription extends VirtualSubscription {
+  method: "eth_subscribe";
+  params: ["logs", LogsSubscriptionFilter?];
+  isBackfilling: boolean;
+  startingBlockNumber: number;
+  sentEvents: LogsEvent[];
+  backfillBuffer: LogsEvent[];
+}
+
+const RETAINED_EVENT_BLOCK_COUNT = 10;
 
 export class AlchemyWebSocketProvider extends EventEmitter
   implements Web3SubscriptionProvider {
@@ -96,7 +118,13 @@ export class AlchemyWebSocketProvider extends EventEmitter
   ): Promise<string> {
     const method = subscribeMethod;
     const params = [subscriptionMethod, ...parameters];
-    const startingBlockNumber = await this.getBlockNumber();
+    const needsStartingBlockNumber =
+      (subscribeMethod === "eth_subscribe" &&
+        subscriptionMethod === "newHeads") ||
+      subscriptionMethod === "logs";
+    const startingBlockNumber = needsStartingBlockNumber
+      ? await this.getBlockNumber()
+      : undefined;
     const id = await this.send(method, params);
     this.virtualSubscriptionsById.set(id, {
       method,
@@ -165,15 +193,38 @@ export class AlchemyWebSocketProvider extends EventEmitter
     const physicalId = message.params.subscription;
     const virtualId = this.virtualIdsByPhysicalId.get(physicalId);
     if (virtualId) {
-      const {
-        isBackfilling,
-        backfillBuffer,
-      } = this.virtualSubscriptionsById.get(virtualId)!;
-      const { result } = message.params;
-      if (isBackfilling) {
-        backfillBuffer.push(result);
+      const subscription = this.virtualSubscriptionsById.get(virtualId)!;
+      if (subscription.method === "eth_subscribe") {
+        switch (subscription.params[0]) {
+          case "newHeads": {
+            const newHeadsSubscription = subscription as NewHeadsSubscription;
+            const newHeadsMessage = message as SubscriptionEvent<NewHeadsEvent>;
+            const { isBackfilling, backfillBuffer } = newHeadsSubscription;
+            const { result } = newHeadsMessage.params;
+            if (isBackfilling) {
+              addToNewHeadsEvents(backfillBuffer, result);
+            } else {
+              this.emitEvent(virtualId, result);
+            }
+            break;
+          }
+          case "logs": {
+            const logsSubscription = subscription as LogsSubscription;
+            const logsMessage = message as SubscriptionEvent<LogsEvent>;
+            const { isBackfilling, backfillBuffer } = logsSubscription;
+            const { result } = logsMessage.params;
+            if (isBackfilling) {
+              addToLogsEvents(backfillBuffer, result);
+            } else {
+              this.emitEvent(virtualId, result);
+            }
+            break;
+          }
+          default:
+            this.emitEvent(virtualId, message.params.result);
+        }
       } else {
-        this.emitEvent(virtualId, result);
+        this.emit(virtualId, message.params.result);
       }
     }
   };
@@ -206,7 +257,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
         const blockNumber = await this.getBlockNumber();
         const backfillEvents = await this.backfiller.getNewHeadsBackfill(
           sentEvents,
-          startingBlockNumber,
+          startingBlockNumber!,
           blockNumber,
         );
         const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
@@ -221,7 +272,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
         const backfillEvents = await this.backfiller.getLogsBackfill(
           filter,
           sentEvents,
-          startingBlockNumber,
+          startingBlockNumber!,
           blockNumber,
         );
         const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
@@ -255,4 +306,34 @@ export class AlchemyWebSocketProvider extends EventEmitter
     };
     this.emit(virtualId, event);
   }
+}
+
+function addToNewHeadsEvents(
+  pastEvents: NewHeadsEvent[],
+  event: NewHeadsEvent,
+): void {
+  addToPastEvents(pastEvents, event, e => Number.parseInt(e.number, 16));
+}
+
+function addToLogsEvents(pastEvents: LogsEvent[], event: LogsEvent): void {
+  addToPastEvents(pastEvents, event, e => Number.parseInt(e.blockNumber, 16));
+}
+
+/**
+ * Copies an array of past events and adds a new one, evicting any events which
+ * are so old that they will no longer feasibly be part of a reorg.
+ */
+function addToPastEvents<T>(
+  pastEvents: T[],
+  event: T,
+  getBlockNumber: (event: T) => number,
+): void {
+  const currentBlockNumber = getBlockNumber(event);
+  const index = pastEvents.findIndex(
+    e => currentBlockNumber < getBlockNumber(e) + RETAINED_EVENT_BLOCK_COUNT,
+  );
+  if (index >= 0) {
+    pastEvents.splice(0, index);
+  }
+  pastEvents.push(event);
 }

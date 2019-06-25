@@ -1,11 +1,27 @@
 import EventEmitter from "eventemitter3";
 import SturdyWebSocket from "sturdy-websocket";
 import {
+  Backfiller,
+  dedupeLogs,
+  dedupeNewHeads,
+  LogsEvent,
+  LogsSubscriptionFilter,
+  makeBackfiller,
+  NewHeadsEvent,
+} from "../subscriptions/subscriptionBackfill";
+import {
   isSubscriptionEvent,
   JsonRpcRequest,
+  SendFunction,
+  SubscriptionEvent,
   WebSocketMessage,
 } from "../types";
-import { makePayloadFactory } from "../util/jsonRpc";
+import { fromHex } from "../util/hex";
+import {
+  JsonRpcSenders,
+  makePayloadFactory,
+  makeSenders,
+} from "../util/jsonRpc";
 import { SendPayloadFunction } from "./sendPayload";
 
 /**
@@ -22,7 +38,7 @@ export interface Web3SubscriptionProvider extends EventEmitter {
   sendBatch(methods: any[], moduleInstance: any): Promise<any>;
   supportsSubscriptions(): true;
   subscribe(
-    subscribeMethod: string,
+    subscribeMethod: string | undefined,
     subscriptionMethod: string,
     parameters: any[],
   ): Promise<string>;
@@ -34,10 +50,35 @@ export interface Web3SubscriptionProvider extends EventEmitter {
 }
 
 interface VirtualSubscription {
+  virtualId: string;
   physicalId: string;
   method: string;
   params: any[];
+  isBackfilling: boolean;
+  startingBlockNumber: number | undefined;
+  sentEvents: any[];
+  backfillBuffer: any[];
 }
+
+interface NewHeadsSubscription extends VirtualSubscription {
+  method: "eth_subscribe";
+  params: ["newHeads"];
+  isBackfilling: boolean;
+  startingBlockNumber: number;
+  sentEvents: NewHeadsEvent[];
+  backfillBuffer: NewHeadsEvent[];
+}
+
+interface LogsSubscription extends VirtualSubscription {
+  method: "eth_subscribe";
+  params: ["logs", LogsSubscriptionFilter?];
+  isBackfilling: boolean;
+  startingBlockNumber: number;
+  sentEvents: LogsEvent[];
+  backfillBuffer: LogsEvent[];
+}
+
+const RETAINED_EVENT_BLOCK_COUNT = 10;
 
 export class AlchemyWebSocketProvider extends EventEmitter
   implements Web3SubscriptionProvider {
@@ -53,12 +94,17 @@ export class AlchemyWebSocketProvider extends EventEmitter
   > = new Map();
   private readonly virtualIdsByPhysicalId: Map<string, string> = new Map();
   private readonly makePayload = makePayloadFactory();
+  private readonly senders: JsonRpcSenders;
+  private readonly backfiller: Backfiller;
 
   constructor(
     private readonly ws: SturdyWebSocket,
     public readonly sendPayload: SendPayloadFunction,
   ) {
     super();
+    this.senders = makeSenders(sendPayload, this.makePayload);
+    this.backfiller = makeBackfiller(this.senders);
+    this.send = this.senders.send;
     this.addSocketListeners();
   }
 
@@ -67,20 +113,31 @@ export class AlchemyWebSocketProvider extends EventEmitter
   }
 
   public async subscribe(
-    subscribeMethod: string,
+    subscribeMethod = "eth_subscribe",
     subscriptionMethod: string,
     parameters: any[],
   ): Promise<string> {
     const method = subscribeMethod;
     const params = [subscriptionMethod, ...parameters];
-    const physicalId = await this.send(method, params);
-    this.virtualSubscriptionsById.set(physicalId, {
-      physicalId,
+    const needsStartingBlockNumber =
+      subscribeMethod === "eth_subscribe" &&
+      (subscriptionMethod === "newHeads" || subscriptionMethod === "logs");
+    const startingBlockNumber = needsStartingBlockNumber
+      ? await this.getBlockNumber()
+      : undefined;
+    const id = await this.send(method, params);
+    this.virtualSubscriptionsById.set(id, {
       method,
       params,
+      startingBlockNumber,
+      virtualId: id,
+      physicalId: id,
+      sentEvents: [],
+      isBackfilling: false,
+      backfillBuffer: [],
     });
-    this.virtualIdsByPhysicalId.set(physicalId, physicalId);
-    return physicalId;
+    this.virtualIdsByPhysicalId.set(id, id);
+    return id;
   }
 
   public async unsubscribe(
@@ -106,13 +163,8 @@ export class AlchemyWebSocketProvider extends EventEmitter
     this.ws.close(code, reason);
   }
 
-  public async send(method: string, params: any[]): Promise<any> {
-    const response = await this.sendPayload(this.makePayload(method, params));
-    if (response.error) {
-      throw new Error(response.error.message);
-    }
-    return response.result;
-  }
+  // tslint:disable-next-line: member-ordering
+  public readonly send: SendFunction;
 
   public sendBatch(methods: any[], moduleInstance: any): Promise<any> {
     const payload: JsonRpcRequest[] = [];
@@ -138,23 +190,150 @@ export class AlchemyWebSocketProvider extends EventEmitter
     if (!isSubscriptionEvent(message)) {
       return;
     }
-    const { subscription } = message.params;
-    const virtualId = this.virtualIdsByPhysicalId.get(subscription);
+    const physicalId = message.params.subscription;
+    const virtualId = this.virtualIdsByPhysicalId.get(physicalId);
     if (virtualId) {
-      this.emit(virtualId, message.params);
+      const subscription = this.virtualSubscriptionsById.get(virtualId)!;
+      if (subscription.method === "eth_subscribe") {
+        switch (subscription.params[0]) {
+          case "newHeads": {
+            const newHeadsSubscription = subscription as NewHeadsSubscription;
+            const newHeadsMessage = message as SubscriptionEvent<NewHeadsEvent>;
+            const { isBackfilling, backfillBuffer } = newHeadsSubscription;
+            const { result } = newHeadsMessage.params;
+            if (isBackfilling) {
+              addToNewHeadsEvents(backfillBuffer, result);
+            } else {
+              this.emitEvent(virtualId, result);
+            }
+            break;
+          }
+          case "logs": {
+            const logsSubscription = subscription as LogsSubscription;
+            const logsMessage = message as SubscriptionEvent<LogsEvent>;
+            const { isBackfilling, backfillBuffer } = logsSubscription;
+            const { result } = logsMessage.params;
+            if (isBackfilling) {
+              addToLogsEvents(backfillBuffer, result);
+            } else {
+              this.emitEvent(virtualId, result);
+            }
+            break;
+          }
+          default:
+            this.emitEvent(virtualId, message.params.result);
+        }
+      } else {
+        this.emit(virtualId, message.params.result);
+      }
     }
   };
 
   private handleReopen = async (): Promise<void> => {
     this.virtualIdsByPhysicalId.clear();
-    for (const [
-      virtualId,
-      virtualSubscription,
-    ] of this.virtualSubscriptionsById.entries()) {
-      const { method, params } = virtualSubscription;
-      const physicalId = await this.send(method, params);
-      virtualSubscription.physicalId = physicalId;
-      this.virtualIdsByPhysicalId.set(physicalId, virtualId);
+    for (const subscription of this.virtualSubscriptionsById.values()) {
+      this.resubscribeAndBackfill(subscription);
     }
   };
+
+  private async resubscribeAndBackfill(
+    subscription: VirtualSubscription,
+  ): Promise<void> {
+    const {
+      virtualId,
+      method,
+      params,
+      sentEvents,
+      backfillBuffer,
+      startingBlockNumber,
+    } = subscription;
+    subscription.isBackfilling = true;
+    backfillBuffer.length = 0;
+    const physicalId = await this.send(method, params);
+    subscription.physicalId = physicalId;
+    this.virtualIdsByPhysicalId.set(physicalId, virtualId);
+    switch (params[0]) {
+      case "newHeads": {
+        const blockNumber = await this.getBlockNumber();
+        const backfillEvents = await this.backfiller.getNewHeadsBackfill(
+          sentEvents,
+          startingBlockNumber!,
+          blockNumber,
+        );
+        const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
+        events.forEach(event => this.emitEvent(virtualId, event));
+        subscription.isBackfilling = false;
+        backfillBuffer.length = 0;
+        break;
+      }
+      case "logs": {
+        const filter: LogsSubscriptionFilter = params[1] || {};
+        const blockNumber = await this.getBlockNumber();
+        const backfillEvents = await this.backfiller.getLogsBackfill(
+          filter,
+          sentEvents,
+          startingBlockNumber!,
+          blockNumber,
+        );
+        const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
+        events.forEach(event => this.emitEvent(virtualId, event));
+        subscription.isBackfilling = false;
+        backfillBuffer.length = 0;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private async getBlockNumber(): Promise<number> {
+    const blockNumberHex: string = await this.send("eth_blockNumber");
+    return fromHex(blockNumberHex);
+  }
+
+  private emitEvent(virtualId: string, result: any): void {
+    const subscription = this.virtualSubscriptionsById.get(virtualId);
+    if (!subscription) {
+      return;
+    }
+    // Web3 modifies these event objects once we pass them on (changing hex
+    // numbers to numbers). We want the original event, so make a defensive
+    // copy.
+    subscription.sentEvents.push({ ...result });
+    const event: SubscriptionEvent["params"] = {
+      subscription: virtualId,
+      result,
+    };
+    this.emit(virtualId, event);
+  }
+}
+
+function addToNewHeadsEvents(
+  pastEvents: NewHeadsEvent[],
+  event: NewHeadsEvent,
+): void {
+  addToPastEvents(pastEvents, event, e => fromHex(e.number));
+}
+
+function addToLogsEvents(pastEvents: LogsEvent[], event: LogsEvent): void {
+  addToPastEvents(pastEvents, event, e => fromHex(e.blockNumber));
+}
+
+/**
+ * Copies an array of past events and adds a new one, evicting any events which
+ * are so old that they will no longer feasibly be part of a reorg.
+ */
+function addToPastEvents<T>(
+  pastEvents: T[],
+  event: T,
+  getBlockNumber: (event: T) => number,
+): void {
+  const currentBlockNumber = getBlockNumber(event);
+  const index = pastEvents.findIndex(
+    e => currentBlockNumber < getBlockNumber(e) + RETAINED_EVENT_BLOCK_COUNT,
+  );
+  if (index >= 0) {
+    pastEvents.splice(0, index);
+  }
+  pastEvents.push(event);
 }

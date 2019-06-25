@@ -7,6 +7,6 @@
     "outDir": "dist/esm",
     "sourceMap": true
   },
-  "exclude": ["__tests__/**/*"],
+  "exclude": ["tests/**/*"],
   "extends": "./tsconfig.json"
 }

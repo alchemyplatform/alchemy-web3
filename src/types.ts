@@ -9,9 +9,9 @@ export interface JsonRpcRequest {
   id?: JsonRpcId;
 }
 
-export interface JsonRpcResponse {
+export interface JsonRpcResponse<T = any> {
   jsonrpc: "2.0";
-  result?: any;
+  result?: T;
   error?: JsonRpcError;
   id: JsonRpcId;
 }
@@ -19,18 +19,18 @@ export interface JsonRpcResponse {
 export type SingleOrBatchRequest = JsonRpcRequest | JsonRpcRequest[];
 export type SingleOrBatchResponse = JsonRpcResponse | JsonRpcResponse[];
 
-export interface JsonRpcError {
+export interface JsonRpcError<T = any> {
   code: number;
   message: string;
-  data?: any;
+  data?: T;
 }
 
-export interface SubscriptionEvent {
+export interface SubscriptionEvent<T = any> {
   jsonrpc: "2.0";
   method: "eth_subscription";
   params: {
     subscription: string;
-    result: any;
+    result: T;
   };
 }
 
@@ -71,3 +71,5 @@ export interface LegacyProvider {
 }
 
 export type Web3Callback<T> = (error: Error | null, result?: T) => void;
+
+export type SendFunction = (method: string, params?: any[]) => Promise<any>;

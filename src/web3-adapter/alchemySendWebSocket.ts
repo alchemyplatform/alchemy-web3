@@ -74,9 +74,7 @@ function getIdFromRequest(
   if (!Array.isArray(request)) {
     return request.id;
   }
-  // In a batch, find the first payload with defined id.
-  const payload = request.find(p => p.id !== undefined) || undefined;
-  return payload && payload.id;
+  return getCanonicalIdFromList(request.map(p => p.id));
 }
 
 function getIdFromResponse(
@@ -85,7 +83,26 @@ function getIdFromResponse(
   if (!Array.isArray(response)) {
     return response.id;
   }
-  // In a batch, find the first payload with defined id.
-  const payload = response.find(p => p.id !== undefined) || undefined;
-  return payload && payload.id;
+  return getCanonicalIdFromList(response.map(p => p.id));
+}
+
+/**
+ * Since the JSON-RPC spec allows responses to be returned in a different order
+ * than sent, we need a mechanism for choosing a canonical id from a list that
+ * doesn't depend on the order. This chooses the "minimum" id by an arbitrary
+ * ordering: the smallest string if possible, otherwise the smallest number,
+ * otherwise null.
+ */
+function getCanonicalIdFromList(
+  ids: Array<JsonRpcId | undefined>,
+): JsonRpcId | undefined {
+  const stringIds: string[] = ids.filter(id => typeof id === "string") as any;
+  if (stringIds.length > 0) {
+    return stringIds.reduce((bestId, id) => (bestId < id ? bestId : id));
+  }
+  const numberIds: number[] = ids.filter(id => typeof id === "number") as any;
+  if (numberIds.length > 0) {
+    return Math.min(...numberIds);
+  }
+  return ids.indexOf(null) >= 0 ? null : undefined;
 }

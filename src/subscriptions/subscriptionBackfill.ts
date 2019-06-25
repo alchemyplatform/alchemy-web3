@@ -1,6 +1,7 @@
 import { BatchPart, JsonRpcSenders } from "../util/jsonRpc";
 
 export interface NewHeadsEvent {
+  author: string;
   difficulty: string;
   extraData: string;
   gasLimit: string;
@@ -8,11 +9,14 @@ export interface NewHeadsEvent {
   hash: string;
   logsBloom: string;
   miner: string;
+  mixHash: string;
   nonce: string;
   number: string;
   parentHash: string;
   receiptsRoot: string;
+  sealFields: string[];
   sha3Uncles: string;
+  size: string;
   stateRoot: string;
   timestamp: string;
   transactionsRoot: string;
@@ -23,7 +27,6 @@ export interface NewHeadsEvent {
  */
 interface BlockHead extends NewHeadsEvent {
   totalDifficulty: string;
-  size: string;
   transactions: any[];
   uncles: string[];
 }
@@ -52,6 +55,14 @@ interface GetLogsOptions extends LogsSubscriptionFilter {
 
 export type Backfiller = ReturnType<typeof makeBackfiller>;
 
+/**
+ * The maximum number of blocks to backfill. If more than this many blocks have
+ * been missed, then we'll sadly miss data, but we want to make sure we don't
+ * end up requesting thousands of blocks if somebody left their laptop closed
+ * for a week.
+ */
+const MAX_BACKFILL_BLOCKS = 120;
+
 export function makeBackfiller(senders: JsonRpcSenders) {
   return { getNewHeadsBackfill, getLogsBackfill };
 
@@ -61,12 +72,22 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     toBlockNumber: number,
   ): Promise<NewHeadsEvent[]> {
     if (previousHeads.length === 0) {
-      return getHeadEventsInRange(fromBlockNumber + 1, toBlockNumber + 1);
+      return getHeadEventsInRange(
+        Math.max(fromBlockNumber, toBlockNumber - MAX_BACKFILL_BLOCKS) + 1,
+        toBlockNumber + 1,
+      );
     }
     const lastSeenBlockNumber = Number.parseInt(
       previousHeads[previousHeads.length - 1].number,
       16,
     );
+    const minBlockNumber = Math.max(
+      0,
+      lastSeenBlockNumber - MAX_BACKFILL_BLOCKS,
+    );
+    if (lastSeenBlockNumber < minBlockNumber) {
+      return getHeadEventsInRange(minBlockNumber, toBlockNumber + 1);
+    }
     const reorgHeads: NewHeadsEvent[] = await getReorgHeads(previousHeads);
     const intermediateHeads: NewHeadsEvent[] = await getHeadEventsInRange(
       lastSeenBlockNumber + 1,
@@ -118,7 +139,22 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     toBlockNumber: number,
   ): Promise<LogsEvent[]> {
     if (previousLogs.length === 0) {
-      return getLogsInRange(filter, fromBlockNumber + 1, toBlockNumber + 1);
+      return getLogsInRange(
+        filter,
+        Math.max(fromBlockNumber, toBlockNumber - MAX_BACKFILL_BLOCKS) + 1,
+        toBlockNumber + 1,
+      );
+    }
+    const lastSeenBlockNumber = Number.parseInt(
+      previousLogs[previousLogs.length - 1].blockNumber,
+      16,
+    );
+    const minBlockNumber = Math.max(
+      0,
+      lastSeenBlockNumber - MAX_BACKFILL_BLOCKS,
+    );
+    if (lastSeenBlockNumber < minBlockNumber) {
+      return getLogsInRange(filter, minBlockNumber, toBlockNumber + 1);
     }
     const commonAncestorNumber = await getCommonAncestorNumber(previousLogs);
     const removedLogs = previousLogs
@@ -164,7 +200,6 @@ export function makeBackfiller(senders: JsonRpcSenders) {
 function toNewHeadsEvent(head: BlockHead): NewHeadsEvent {
   const result = { ...head };
   delete result.totalDifficulty;
-  delete result.size;
   delete result.transactions;
   delete result.uncles;
   return result;
@@ -175,7 +210,7 @@ export function dedupeNewHeads(events: NewHeadsEvent[]): NewHeadsEvent[] {
 }
 
 export function dedupeLogs(events: LogsEvent[]): LogsEvent[] {
-  return dedupe(events, event => `${event.blockHash}-${event.logIndex}`);
+  return dedupe(events, event => `${event.blockHash}/${event.logIndex}`);
 }
 
 function dedupe<T>(items: T[], getKey: (item: T) => any): T[] {

@@ -6,7 +6,7 @@ Web3 client extended with Alchemy and browser provider integration.
 
 Alchemy Web3 provides website authors with a drop-in replacement for the
 [web3.js](https://github.com/ethereum/web3.js) Ethereum API client. It produces
-a client matching that of web3.js, but brings three advantages to make use of
+a client matching that of web3.js, but brings multiple advantages to make use of
 [Alchemy API](https://alchemyapi.io):
 
 - **Uses Alchemy or an injected provider as needed.** Most requests will be sent
@@ -21,6 +21,9 @@ a client matching that of web3.js, but brings three advantages to make use of
 - **Automatically retries on rate limited requests.** If Alchemy returns a 429
   (rate limited) response, automatically retry after a short delay. This
   behavior is configurable.
+
+- **Robust WebSocket subscriptions** which don't miss events if the WebSocket
+  needs to be reconnected.
 
 Alchemy Web3 is designed to require minimal configuration so you can start using
 it in your app right away.
@@ -47,14 +50,24 @@ have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
 ### Basic Usage
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
-it your Alchemy app's URL and optionally a configuration object:
+it your Alchemy app's URL and optionally a configuration object.
 
 ```ts
 import { createAlchemyWeb3 } from "@alch/alchemy-web3";
 
-const ALCHEMY_URL = "https://eth-mainnet.alchemyapi.io/jsonrpc/<api-key>";
+// Using HTTPS
+const web3 = createAlchemyWeb3(
+  "https://eth-mainnet.alchemyapi.io/jsonrpc/<api-key>",
+);
+```
 
-const web3 = createAlchemyWeb3(ALCHEMY_URL);
+or
+
+```ts
+// Using WebSockets
+const web3 = createAlchemyWeb3(
+  "wss://eth-mainnet.ws.alchemyapi.io/ws/<api-key>",
+);
 ```
 
 You can use any of the methods described in the [web3.js
@@ -173,6 +186,31 @@ The minimum time waited between consecutive retries, in milliseconds. Default: 1
 A random amount of time is added to the retry delay to help avoid additional
 rate errors caused by too many concurrent connections, chosen as a number of
 milliseconds between 0 and this value. Default: 250.
+
+### Sturdier WebSockets
+
+Alchemy-Web3 brings multiple improvements to ensure correct behavior in cases of
+temporary network failure or dropped connections. As with any network
+connection, you should not assume that a WebSocket will remain open forever
+without interruption, but correctly handling dropped connections and
+reconnection by hand can be challenging to get right. Alchemy-Web3 automatically
+adds handling for these failures with no configuration necessary.
+
+If you use your WebSocket URL when initializing, then when you create
+subscriptions using `web3.eth.subscribe()`, Alchemy-Web3 will bring the
+following advantages over standard Web3 subscriptions:
+
+- Unlike standard Web3, you will not permanently miss events which arrive while
+  the backing WebSocket is temporarily down. Instead, you will receive thees
+  events as soon as the connection is reopened. Note that if the connection is
+  down for more than 120 blocks (approximately 20 minutes), you may still miss
+  some events that were not part of the most recent 120 blocks.
+
+- Compared to standard Web3, lowered rate of failure when sending requests over
+  the WebSocket while the connection is down. Alchemy-Web3 will attempt to send
+  the requests once the connection is reopened. Note that it is still possible,
+  with a lower likelihood, for outgoing requests to be lost, so you should still
+  have error handling as with any network request.
 
 ## Alchemy Higher Level API
 

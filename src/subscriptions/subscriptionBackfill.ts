@@ -1,3 +1,4 @@
+import { fromHex, toHex } from "../util/hex";
 import { BatchPart, JsonRpcSenders } from "../util/jsonRpc";
 
 export interface NewHeadsEvent {
@@ -25,7 +26,7 @@ export interface NewHeadsEvent {
 /**
  * The return type of eth_getBlocksByHash.
  */
-interface BlockHead extends NewHeadsEvent {
+export interface BlockHead extends NewHeadsEvent {
   totalDifficulty: string;
   transactions: any[];
   uncles: string[];
@@ -77,9 +78,8 @@ export function makeBackfiller(senders: JsonRpcSenders) {
         toBlockNumber + 1,
       );
     }
-    const lastSeenBlockNumber = Number.parseInt(
+    const lastSeenBlockNumber = fromHex(
       previousHeads[previousHeads.length - 1].number,
-      16,
     );
     const minBlockNumber = Math.max(
       0,
@@ -102,9 +102,7 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     const result: NewHeadsEvent[] = [];
     for (let i = previousHeads.length - 1; i >= 0; i--) {
       const oldEvent = previousHeads[i];
-      const blockHead = await getBlockByNumber(
-        Number.parseInt(oldEvent.number, 16),
-      );
+      const blockHead = await getBlockByNumber(fromHex(oldEvent.number));
       if (oldEvent.hash === blockHead.hash) {
         break;
       }
@@ -145,9 +143,8 @@ export function makeBackfiller(senders: JsonRpcSenders) {
         toBlockNumber + 1,
       );
     }
-    const lastSeenBlockNumber = Number.parseInt(
+    const lastSeenBlockNumber = fromHex(
       previousLogs[previousLogs.length - 1].blockNumber,
-      16,
     );
     const minBlockNumber = Math.max(
       0,
@@ -158,9 +155,7 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     }
     const commonAncestorNumber = await getCommonAncestorNumber(previousLogs);
     const removedLogs = previousLogs
-      .filter(
-        log => Number.parseInt(log.blockNumber, 16) > commonAncestorNumber,
-      )
+      .filter(log => fromHex(log.blockNumber) > commonAncestorNumber)
       .map(log => ({ ...log, removed: true }));
     const addedLogs = await getLogsInRange(
       filter,
@@ -175,9 +170,9 @@ export function makeBackfiller(senders: JsonRpcSenders) {
   ): Promise<number> {
     for (let i = previousLogs.length - 1; i >= 0; i--) {
       const { blockHash, blockNumber } = previousLogs[i];
-      const { hash } = await getBlockByNumber(Number.parseInt(blockNumber, 16));
+      const { hash } = await getBlockByNumber(fromHex(blockNumber));
       if (blockHash === hash) {
-        return Number.parseInt(blockNumber, 16);
+        return fromHex(blockNumber);
       }
     }
     return Number.NEGATIVE_INFINITY;
@@ -224,8 +219,4 @@ function dedupe<T>(items: T[], getKey: (item: T) => any): T[] {
     }
   });
   return result;
-}
-
-function toHex(n: number): string {
-  return `0x${n.toString(16)}`;
 }

@@ -16,6 +16,7 @@ import {
   SubscriptionEvent,
   WebSocketMessage,
 } from "../types";
+import { fromHex } from "../util/hex";
 import {
   JsonRpcSenders,
   makePayloadFactory,
@@ -287,7 +288,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
 
   private async getBlockNumber(): Promise<number> {
     const blockNumberHex: string = await this.send("eth_blockNumber");
-    return Number.parseInt(blockNumberHex, 16);
+    return fromHex(blockNumberHex);
   }
 
   private emitEvent(virtualId: string, result: any): void {
@@ -311,11 +312,11 @@ function addToNewHeadsEvents(
   pastEvents: NewHeadsEvent[],
   event: NewHeadsEvent,
 ): void {
-  addToPastEvents(pastEvents, event, e => Number.parseInt(e.number, 16));
+  addToPastEvents(pastEvents, event, e => fromHex(e.number));
 }
 
 function addToLogsEvents(pastEvents: LogsEvent[], event: LogsEvent): void {
-  addToPastEvents(pastEvents, event, e => Number.parseInt(e.blockNumber, 16));
+  addToPastEvents(pastEvents, event, e => fromHex(e.blockNumber));
 }
 
 /**

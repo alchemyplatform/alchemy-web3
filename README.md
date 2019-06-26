@@ -18,8 +18,7 @@ a client matching that of web3.js, but brings multiple advantages to make use of
 - **Easy access to Alchemy's higher level API.** The client exposes methods to
   call Alchemy's exclusive features.
 
-- **Automatically retries on rate limited requests.** If Alchemy returns a 429
-  (rate limited) response, automatically retry after a short delay. This
+- **Automatically retries on rate limited requests.** If Alchemy returns a 429 response (rate limited), automatically retry after a short delay. This
   behavior is configurable.
 
 - **Robust WebSocket subscriptions** which don't miss events if the WebSocket
@@ -189,15 +188,15 @@ milliseconds between 0 and this value. Default: 250.
 
 ### Sturdier WebSockets
 
-Alchemy-Web3 brings multiple improvements to ensure correct behavior in cases of
-temporary network failure or dropped connections. As with any network
-connection, you should not assume that a WebSocket will remain open forever
-without interruption, but correctly handling dropped connections and
-reconnection by hand can be challenging to get right. Alchemy-Web3 automatically
+Alchemy Web3 brings multiple improvements to ensure correct WebSocket behavior
+in cases of temporary network failure or dropped connections. As with any
+network connection, you should not assume that a WebSocket will remain open
+forever without interruption, but correctly handling dropped connections and
+reconnection by hand can be challenging to get right. Alchemy Web3 automatically
 adds handling for these failures with no configuration necessary.
 
 If you use your WebSocket URL when initializing, then when you create
-subscriptions using `web3.eth.subscribe()`, Alchemy-Web3 will bring the
+subscriptions using `web3.eth.subscribe()`, Alchemy Web3 will bring the
 following advantages over standard Web3 subscriptions:
 
 - Unlike standard Web3, you will not permanently miss events which arrive while
@@ -207,7 +206,7 @@ following advantages over standard Web3 subscriptions:
   some events that were not part of the most recent 120 blocks.
 
 - Compared to standard Web3, lowered rate of failure when sending requests over
-  the WebSocket while the connection is down. Alchemy-Web3 will attempt to send
+  the WebSocket while the connection is down. Alchemy Web3 will attempt to send
   the requests once the connection is reopened. Note that it is still possible,
   with a lower likelihood, for outgoing requests to be lost, so you should still
   have error handling as with any network request.

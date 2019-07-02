@@ -1,4 +1,5 @@
 import SturdyWebSocket from "sturdy-websocket";
+import { w3cwebsocket } from "websocket";
 import { FullConfig, Provider } from "../types";
 import { makeHttpSender } from "./alchemySendHttp";
 import { makeWebSocketSender } from "./alchemySendWebSocket";
@@ -24,7 +25,9 @@ export function makeAlchemyContext(
     const provider = makeAlchemyHttpProvider(sendPayload);
     return { provider, setWriteProvider };
   } else if (/^wss?:\/\//.test(url)) {
-    const ws = new SturdyWebSocket(url);
+    const ws = new SturdyWebSocket(url, {
+      wsConstructor: getWebSocketConstructor(),
+    });
     const alchemySend = makeWebSocketSender(ws);
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,
@@ -37,4 +40,17 @@ export function makeAlchemyContext(
       `Alchemy URL protocol must be one of http, https, ws, or wss. Recieved: ${url}`,
     );
   }
+}
+
+function getWebSocketConstructor(): typeof WebSocket {
+  return isNodeEnvironment() ? (w3cwebsocket as any) : WebSocket;
+}
+
+function isNodeEnvironment(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process != null &&
+    process.versions != null &&
+    process.versions.node != null
+  );
 }

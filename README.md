@@ -211,9 +211,9 @@ following advantages over standard Web3 subscriptions:
   with a lower likelihood, for outgoing requests to be lost, so you should still
   have error handling as with any network request.
 
-## Alchemy Higher Level API
+## Alchemy's Enhanced API
 
-The produced client also grants easy access to Alchemy's [higher level API](https://docs.alchemyapi.io/docs/higher-level-api).
+The produced client also grants easy access to Alchemy's [enhanced API](https://docs.alchemyapi.io/docs/enhanced-api).
 
 ### `web3.alchemy.getTokenAllowance({contract, owner, spender})`
 

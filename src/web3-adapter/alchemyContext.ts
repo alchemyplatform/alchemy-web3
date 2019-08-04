@@ -7,6 +7,8 @@ import { makeAlchemyHttpProvider } from "./httpProvider";
 import { makePayloadSender } from "./sendPayload";
 import { AlchemyWebSocketProvider } from "./webSocketProvider";
 
+const NODE_MAX_WS_FRAME_SIZE = 100 * 1024 * 1024; // 100 MB
+
 export interface AlchemyContext {
   provider: any;
   setWriteProvider(provider: Provider | null | undefined): void;
@@ -42,8 +44,14 @@ export function makeAlchemyContext(
   }
 }
 
-function getWebSocketConstructor(): typeof WebSocket {
-  return isNodeEnvironment() ? (w3cwebsocket as any) : WebSocket;
+function getWebSocketConstructor(): any {
+  return isNodeEnvironment()
+    ? (url: string, protocols?: string | string[] | undefined) =>
+        new w3cwebsocket(url, protocols, undefined, undefined, undefined, {
+          maxReceivedMessageSize: NODE_MAX_WS_FRAME_SIZE,
+          maxReceivedFrameSize: NODE_MAX_WS_FRAME_SIZE,
+        })
+    : WebSocket;
 }
 
 function isNodeEnvironment(): boolean {

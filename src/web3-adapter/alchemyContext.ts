@@ -1,6 +1,7 @@
 import SturdyWebSocket from "sturdy-websocket";
 import { w3cwebsocket } from "websocket";
 import { FullConfig, Provider } from "../types";
+import { VERSION } from "../version";
 import { makeHttpSender } from "./alchemySendHttp";
 import { makeWebSocketSender } from "./alchemySendWebSocket";
 import { makeAlchemyHttpProvider } from "./httpProvider";
@@ -27,7 +28,8 @@ export function makeAlchemyContext(
     const provider = makeAlchemyHttpProvider(sendPayload);
     return { provider, setWriteProvider };
   } else if (/^wss?:\/\//.test(url)) {
-    const ws = new SturdyWebSocket(url, {
+    const protocol = isAlchemyUrl(url) ? `alchemy-web3-${VERSION}` : undefined;
+    const ws = new SturdyWebSocket(url, protocol, {
       wsConstructor: getWebSocketConstructor(),
     });
     const alchemySend = makeWebSocketSender(ws);
@@ -61,4 +63,8 @@ function isNodeEnvironment(): boolean {
     process.versions != null &&
     process.versions.node != null
   );
+}
+
+function isAlchemyUrl(url: string): boolean {
+  return url.indexOf("alchemyapi.io") >= 0;
 }

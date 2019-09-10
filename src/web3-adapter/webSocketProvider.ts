@@ -24,6 +24,9 @@ import {
 } from "../util/jsonRpc";
 import { SendPayloadFunction } from "./sendPayload";
 
+const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_WAIT_TIME = 10000;
+
 /**
  * This is the undocumented interface required by Web3 for providers which
  * handle subscriptions.
@@ -96,6 +99,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private readonly makePayload = makePayloadFactory();
   private readonly senders: JsonRpcSenders;
   private readonly backfiller: Backfiller;
+  private heartbeatIntervalId?: NodeJS.Timeout;
 
   constructor(
     private readonly ws: SturdyWebSocket,
@@ -106,6 +110,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     this.backfiller = makeBackfiller(this.senders);
     this.send = this.senders.send;
     this.addSocketListeners();
+    this.startHeartbeat();
   }
 
   public supportsSubscriptions(): true {
@@ -160,6 +165,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   public disconnect(code?: number, reason?: string): void {
     this.removeSocketListeners();
     this.removeAllListeners();
+    this.stopHeartbeat();
     this.ws.close(code, reason);
   }
 
@@ -178,12 +184,40 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private addSocketListeners(): void {
     this.ws.addEventListener("message", this.handleMessage);
     this.ws.addEventListener("reopen", this.handleReopen);
+    this.ws.addEventListener("down", this.stopHeartbeat);
+    this.ws.addEventListener("reopen", this.startHeartbeat);
   }
 
   private removeSocketListeners(): void {
     this.ws.removeEventListener("message", this.handleMessage);
     this.ws.removeEventListener("reopen", this.handleReopen);
+    this.ws.removeEventListener("down", this.stopHeartbeat);
+    this.ws.removeEventListener("reopen", this.startHeartbeat);
   }
+
+  private startHeartbeat = (): void => {
+    if (this.heartbeatIntervalId != null) {
+      return;
+    }
+    this.heartbeatIntervalId = setInterval(async () => {
+      try {
+        await Promise.race([
+          this.send("web3_clientVersion"),
+          new Promise((_, reject) => setTimeout(reject, HEARTBEAT_WAIT_TIME)),
+        ]);
+      } catch {
+        this.stopHeartbeat();
+        this.ws.reconnect();
+      }
+    }, HEARTBEAT_INTERVAL);
+  };
+
+  private stopHeartbeat = (): void => {
+    if (this.heartbeatIntervalId != null) {
+      clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = undefined;
+    }
+  };
 
   private handleMessage = (event: MessageEvent): void => {
     const message: WebSocketMessage = JSON.parse(event.data);

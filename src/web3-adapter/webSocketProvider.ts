@@ -22,6 +22,7 @@ import {
   makePayloadFactory,
   makeSenders,
 } from "../util/jsonRpc";
+import { withBackoffRetries, withTimeout } from "../util/promises";
 import { SendPayloadFunction } from "./sendPayload";
 
 const HEARTBEAT_INTERVAL = 30000;
@@ -58,7 +59,7 @@ interface VirtualSubscription {
   method: string;
   params: any[];
   isBackfilling: boolean;
-  startingBlockNumber: number | undefined;
+  startingBlockNumber: number;
   sentEvents: any[];
   backfillBuffer: any[];
 }
@@ -67,7 +68,6 @@ interface NewHeadsSubscription extends VirtualSubscription {
   method: "eth_subscribe";
   params: ["newHeads"];
   isBackfilling: boolean;
-  startingBlockNumber: number;
   sentEvents: NewHeadsEvent[];
   backfillBuffer: NewHeadsEvent[];
 }
@@ -76,7 +76,6 @@ interface LogsSubscription extends VirtualSubscription {
   method: "eth_subscribe";
   params: ["logs", LogsSubscriptionFilter?];
   isBackfilling: boolean;
-  startingBlockNumber: number;
   sentEvents: LogsEvent[];
   backfillBuffer: LogsEvent[];
 }
@@ -124,12 +123,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   ): Promise<string> {
     const method = subscribeMethod;
     const params = [subscriptionMethod, ...parameters];
-    const needsStartingBlockNumber =
-      subscribeMethod === "eth_subscribe" &&
-      (subscriptionMethod === "newHeads" || subscriptionMethod === "logs");
-    const startingBlockNumber = needsStartingBlockNumber
-      ? await this.getBlockNumber()
-      : undefined;
+    const startingBlockNumber = await this.getBlockNumber();
     const id = await this.send(method, params);
     this.virtualSubscriptionsById.set(id, {
       method,
@@ -201,10 +195,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
     this.heartbeatIntervalId = setInterval(async () => {
       try {
-        await Promise.race([
-          this.send("web3_clientVersion"),
-          new Promise((_, reject) => setTimeout(reject, HEARTBEAT_WAIT_TIME)),
-        ]);
+        await withTimeout(this.send("web3_clientVersion"), HEARTBEAT_WAIT_TIME);
       } catch {
         this.stopHeartbeat();
         this.ws.reconnect();
@@ -288,11 +279,16 @@ export class AlchemyWebSocketProvider extends EventEmitter
     this.virtualIdsByPhysicalId.set(physicalId, virtualId);
     switch (params[0]) {
       case "newHeads": {
-        const blockNumber = await this.getBlockNumber();
-        const backfillEvents = await this.backfiller.getNewHeadsBackfill(
-          sentEvents,
-          startingBlockNumber!,
-          blockNumber,
+        const backfillEvents = await withBackoffRetries(
+          () =>
+            withTimeout(
+              this.backfiller.getNewHeadsBackfill(
+                sentEvents,
+                startingBlockNumber,
+              ),
+              10000,
+            ),
+          5,
         );
         const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
         events.forEach(event => this.emitEvent(virtualId, event));
@@ -302,12 +298,17 @@ export class AlchemyWebSocketProvider extends EventEmitter
       }
       case "logs": {
         const filter: LogsSubscriptionFilter = params[1] || {};
-        const blockNumber = await this.getBlockNumber();
-        const backfillEvents = await this.backfiller.getLogsBackfill(
-          filter,
-          sentEvents,
-          startingBlockNumber!,
-          blockNumber,
+        const backfillEvents = await withBackoffRetries(
+          () =>
+            withTimeout(
+              this.backfiller.getLogsBackfill(
+                filter,
+                sentEvents,
+                startingBlockNumber,
+              ),
+              10000,
+            ),
+          5,
         );
         const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
         events.forEach(event => this.emitEvent(virtualId, event));

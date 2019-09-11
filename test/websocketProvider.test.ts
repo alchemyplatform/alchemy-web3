@@ -17,6 +17,10 @@ beforeEach(() => {
   wsProvider = new AlchemyWebSocketProvider(ws as any, sendPayload);
 });
 
+afterEach(() => {
+  wsProvider.disconnect();
+});
+
 describe("AlchemyWebSocketProvider", () => {
   it("sends and receives payloads", async () => {
     let resolve: (result: JsonRpcResponse) => void = undefined!;

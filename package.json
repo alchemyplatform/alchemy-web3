@@ -1,6 +1,6 @@
 {
   "name": "@alch/alchemy-web3",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Web3 client extended with Alchemy and browser provider integration.",
   "module": "dist/esm/index.js",
   "main": "dist/cjs/index.js",
@@ -50,23 +50,23 @@
     ]
   },
   "devDependencies": {
-    "@types/jest": "^24.0.12",
+    "@types/jest": "^24.0.18",
     "@types/websocket": "^0.0.40",
-    "husky": "^2.2.0",
-    "jest": "^24.8.0",
-    "lint-staged": "^8.1.6",
-    "prettier": "^1.17.0",
+    "husky": "^3.0.5",
+    "jest": "^24.9.0",
+    "lint-staged": "^9.2.5",
+    "prettier": "^1.18.2",
     "ts-jest": "^24.0.2",
-    "tslint": "^5.16.0",
+    "tslint": "^5.20.0",
     "tslint-config-prettier": "^1.18.0",
-    "typescript": "^3.4.5"
+    "typescript": "^3.6.3"
   },
   "dependencies": {
     "@types/web3": "^1.0.18",
     "assert-never": "^1.2.0",
     "eventemitter3": "^3.1.2",
     "fetch-ponyfill": "^6.0.2",
-    "sturdy-websocket": "^0.1.11",
+    "sturdy-websocket": "^0.2.1",
     "web3": "1.0.0-beta.55",
     "web3-providers": "1.0.0-beta.55",
     "websocket": "^1.0.28"

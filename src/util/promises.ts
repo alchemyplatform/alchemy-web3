@@ -32,3 +32,39 @@ export function callWhenDone<T>(
 export function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), ms),
+    ),
+  ]);
+}
+
+const MIN_RETRY_DELAY = 1000;
+const RETRY_BACKOFF_FACTOR = 2;
+const MAX_RETRY_DELAY = 30000;
+
+export async function withBackoffRetries<T>(
+  f: () => Promise<T>,
+  retryCount: number,
+): Promise<T> {
+  let nextWaitTime = 0;
+  let i = 0;
+  while (true) {
+    try {
+      return await f();
+    } catch (error) {
+      i++;
+      if (i >= retryCount) {
+        throw error;
+      }
+      await delay(nextWaitTime);
+      nextWaitTime =
+        nextWaitTime === 0
+          ? MIN_RETRY_DELAY
+          : Math.min(MAX_RETRY_DELAY, RETRY_BACKOFF_FACTOR * nextWaitTime);
+    }
+  }
+}

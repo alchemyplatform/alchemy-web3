@@ -22,7 +22,11 @@ import {
   makePayloadFactory,
   makeSenders,
 } from "../util/jsonRpc";
+import { withBackoffRetries, withTimeout } from "../util/promises";
 import { SendPayloadFunction } from "./sendPayload";
+
+const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_WAIT_TIME = 10000;
 
 /**
  * This is the undocumented interface required by Web3 for providers which
@@ -55,7 +59,7 @@ interface VirtualSubscription {
   method: string;
   params: any[];
   isBackfilling: boolean;
-  startingBlockNumber: number | undefined;
+  startingBlockNumber: number;
   sentEvents: any[];
   backfillBuffer: any[];
 }
@@ -64,7 +68,6 @@ interface NewHeadsSubscription extends VirtualSubscription {
   method: "eth_subscribe";
   params: ["newHeads"];
   isBackfilling: boolean;
-  startingBlockNumber: number;
   sentEvents: NewHeadsEvent[];
   backfillBuffer: NewHeadsEvent[];
 }
@@ -73,7 +76,6 @@ interface LogsSubscription extends VirtualSubscription {
   method: "eth_subscribe";
   params: ["logs", LogsSubscriptionFilter?];
   isBackfilling: boolean;
-  startingBlockNumber: number;
   sentEvents: LogsEvent[];
   backfillBuffer: LogsEvent[];
 }
@@ -96,6 +98,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private readonly makePayload = makePayloadFactory();
   private readonly senders: JsonRpcSenders;
   private readonly backfiller: Backfiller;
+  private heartbeatIntervalId?: NodeJS.Timeout;
 
   constructor(
     private readonly ws: SturdyWebSocket,
@@ -106,6 +109,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     this.backfiller = makeBackfiller(this.senders);
     this.send = this.senders.send;
     this.addSocketListeners();
+    this.startHeartbeat();
   }
 
   public supportsSubscriptions(): true {
@@ -119,12 +123,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   ): Promise<string> {
     const method = subscribeMethod;
     const params = [subscriptionMethod, ...parameters];
-    const needsStartingBlockNumber =
-      subscribeMethod === "eth_subscribe" &&
-      (subscriptionMethod === "newHeads" || subscriptionMethod === "logs");
-    const startingBlockNumber = needsStartingBlockNumber
-      ? await this.getBlockNumber()
-      : undefined;
+    const startingBlockNumber = await this.getBlockNumber();
     const id = await this.send(method, params);
     this.virtualSubscriptionsById.set(id, {
       method,
@@ -160,6 +159,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   public disconnect(code?: number, reason?: string): void {
     this.removeSocketListeners();
     this.removeAllListeners();
+    this.stopHeartbeat();
     this.ws.close(code, reason);
   }
 
@@ -178,12 +178,37 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private addSocketListeners(): void {
     this.ws.addEventListener("message", this.handleMessage);
     this.ws.addEventListener("reopen", this.handleReopen);
+    this.ws.addEventListener("down", this.stopHeartbeat);
+    this.ws.addEventListener("reopen", this.startHeartbeat);
   }
 
   private removeSocketListeners(): void {
     this.ws.removeEventListener("message", this.handleMessage);
     this.ws.removeEventListener("reopen", this.handleReopen);
+    this.ws.removeEventListener("down", this.stopHeartbeat);
+    this.ws.removeEventListener("reopen", this.startHeartbeat);
   }
+
+  private startHeartbeat = (): void => {
+    if (this.heartbeatIntervalId != null) {
+      return;
+    }
+    this.heartbeatIntervalId = setInterval(async () => {
+      try {
+        await withTimeout(this.send("web3_clientVersion"), HEARTBEAT_WAIT_TIME);
+      } catch {
+        this.stopHeartbeat();
+        this.ws.reconnect();
+      }
+    }, HEARTBEAT_INTERVAL);
+  };
+
+  private stopHeartbeat = (): void => {
+    if (this.heartbeatIntervalId != null) {
+      clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = undefined;
+    }
+  };
 
   private handleMessage = (event: MessageEvent): void => {
     const message: WebSocketMessage = JSON.parse(event.data);
@@ -254,11 +279,16 @@ export class AlchemyWebSocketProvider extends EventEmitter
     this.virtualIdsByPhysicalId.set(physicalId, virtualId);
     switch (params[0]) {
       case "newHeads": {
-        const blockNumber = await this.getBlockNumber();
-        const backfillEvents = await this.backfiller.getNewHeadsBackfill(
-          sentEvents,
-          startingBlockNumber!,
-          blockNumber,
+        const backfillEvents = await withBackoffRetries(
+          () =>
+            withTimeout(
+              this.backfiller.getNewHeadsBackfill(
+                sentEvents,
+                startingBlockNumber,
+              ),
+              10000,
+            ),
+          5,
         );
         const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
         events.forEach(event => this.emitEvent(virtualId, event));
@@ -268,12 +298,17 @@ export class AlchemyWebSocketProvider extends EventEmitter
       }
       case "logs": {
         const filter: LogsSubscriptionFilter = params[1] || {};
-        const blockNumber = await this.getBlockNumber();
-        const backfillEvents = await this.backfiller.getLogsBackfill(
-          filter,
-          sentEvents,
-          startingBlockNumber!,
-          blockNumber,
+        const backfillEvents = await withBackoffRetries(
+          () =>
+            withTimeout(
+              this.backfiller.getLogsBackfill(
+                filter,
+                sentEvents,
+                startingBlockNumber,
+              ),
+              10000,
+            ),
+          5,
         );
         const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
         events.forEach(event => this.emitEvent(virtualId, event));

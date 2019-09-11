@@ -70,8 +70,8 @@ export function makeBackfiller(senders: JsonRpcSenders) {
   async function getNewHeadsBackfill(
     previousHeads: NewHeadsEvent[],
     fromBlockNumber: number,
-    toBlockNumber: number,
   ): Promise<NewHeadsEvent[]> {
+    const toBlockNumber = await getBlockNumber();
     if (previousHeads.length === 0) {
       return getHeadEventsInRange(
         Math.max(fromBlockNumber, toBlockNumber - MAX_BACKFILL_BLOCKS) + 1,
@@ -134,8 +134,8 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     filter: LogsSubscriptionFilter,
     previousLogs: LogsEvent[],
     fromBlockNumber: number,
-    toBlockNumber: number,
   ): Promise<LogsEvent[]> {
+    const toBlockNumber = await getBlockNumber();
     if (previousLogs.length === 0) {
       return getLogsInRange(
         filter,
@@ -189,6 +189,11 @@ export function makeBackfiller(senders: JsonRpcSenders) {
       toBlock: toHex(toBlockExclusive - 1),
     };
     return senders.send("eth_getLogs", [rangeFilter]);
+  }
+
+  async function getBlockNumber(): Promise<number> {
+    const blockNumberHex: string = await senders.send("eth_blockNumber");
+    return fromHex(blockNumberHex);
   }
 }
 

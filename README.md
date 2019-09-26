@@ -200,7 +200,7 @@ subscriptions using `web3.eth.subscribe()`, Alchemy Web3 will bring the
 following advantages over standard Web3 subscriptions:
 
 - Unlike standard Web3, you will not permanently miss events which arrive while
-  the backing WebSocket is temporarily down. Instead, you will receive thees
+  the backing WebSocket is temporarily down. Instead, you will receive these
   events as soon as the connection is reopened. Note that if the connection is
   down for more than 120 blocks (approximately 20 minutes), you may still miss
   some events that were not part of the most recent 120 blocks.

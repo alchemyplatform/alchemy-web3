@@ -60,7 +60,13 @@ export interface AlchemyWeb3Config {
 
 export type FullConfig = Required<AlchemyWeb3Config>;
 
-export type Provider = Eip1193Provider | LegacyProvider;
+export type Provider =
+  | {
+      sendAsync(payload: any, callback: any): void;
+    }
+  | {
+      send(payload: any, callback: any): void;
+    };
 
 export interface Eip1193Provider {
   send(method: string, params?: any[]): Promise<any>;

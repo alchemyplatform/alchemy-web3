@@ -4,7 +4,6 @@ import {
   FullConfig,
   JsonRpcRequest,
   JsonRpcResponse,
-  LegacyProvider,
   Provider,
   SingleOrBatchRequest,
   SingleOrBatchResponse,
@@ -79,20 +78,22 @@ function getEip1193Provider(
 ): Eip1193Provider | undefined {
   if (!provider) {
     return undefined;
-  } else if ((provider as Eip1193Provider).send) {
-    return provider as Eip1193Provider;
-  } else {
-    let nextId = 0;
-    return {
-      send: (method, params) =>
-        promisify(callback =>
-          (provider as LegacyProvider).sendAsync(
-            { jsonrpc: "2.0", id: `legacy:${nextId++}`, method, params },
-            callback,
-          ),
-        ),
-    };
   }
+  const anyProvider: any = provider;
+  let nextId = 0;
+  const sendMethod = (anyProvider.sendAsync
+    ? anyProvider.sendAsync
+    : anyProvider.send
+  ).bind(anyProvider);
+  return {
+    send: (method, params) =>
+      promisify(callback =>
+        sendMethod(
+          { jsonrpc: "2.0", id: `legacy:${nextId++}`, method, params },
+          callback,
+        ),
+      ),
+  };
 }
 
 function sendWithProvider(

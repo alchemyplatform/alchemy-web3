@@ -22,7 +22,12 @@ import {
   makePayloadFactory,
   makeSenders,
 } from "../util/jsonRpc";
-import { withBackoffRetries, withTimeout } from "../util/promises";
+import {
+  makeCancelToken,
+  throwIfCancelled,
+  withBackoffRetries,
+  withTimeout,
+} from "../util/promises";
 import { SendPayloadFunction } from "./sendPayload";
 
 const HEARTBEAT_INTERVAL = 30000;
@@ -99,6 +104,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private readonly senders: JsonRpcSenders;
   private readonly backfiller: Backfiller;
   private heartbeatIntervalId?: NodeJS.Timeout;
+  private cancelBackfill = noop;
 
   constructor(
     private readonly ws: SturdyWebSocket,
@@ -159,7 +165,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   public disconnect(code?: number, reason?: string): void {
     this.removeSocketListeners();
     this.removeAllListeners();
-    this.stopHeartbeat();
+    this.stopHeartbeatAndBackfill();
     this.ws.close(code, reason);
   }
 
@@ -178,15 +184,13 @@ export class AlchemyWebSocketProvider extends EventEmitter
   private addSocketListeners(): void {
     this.ws.addEventListener("message", this.handleMessage);
     this.ws.addEventListener("reopen", this.handleReopen);
-    this.ws.addEventListener("down", this.stopHeartbeat);
-    this.ws.addEventListener("reopen", this.startHeartbeat);
+    this.ws.addEventListener("down", this.stopHeartbeatAndBackfill);
   }
 
   private removeSocketListeners(): void {
     this.ws.removeEventListener("message", this.handleMessage);
     this.ws.removeEventListener("reopen", this.handleReopen);
-    this.ws.removeEventListener("down", this.stopHeartbeat);
-    this.ws.removeEventListener("reopen", this.startHeartbeat);
+    this.ws.removeEventListener("down", this.stopHeartbeatAndBackfill);
   }
 
   private startHeartbeat = (): void => {
@@ -197,17 +201,17 @@ export class AlchemyWebSocketProvider extends EventEmitter
       try {
         await withTimeout(this.send("web3_clientVersion"), HEARTBEAT_WAIT_TIME);
       } catch {
-        this.stopHeartbeat();
         this.ws.reconnect();
       }
     }, HEARTBEAT_INTERVAL);
   };
 
-  private stopHeartbeat = (): void => {
+  private stopHeartbeatAndBackfill = (): void => {
     if (this.heartbeatIntervalId != null) {
       clearInterval(this.heartbeatIntervalId);
       this.heartbeatIntervalId = undefined;
     }
+    this.cancelBackfill();
   };
 
   private handleMessage = (event: MessageEvent): void => {
@@ -254,14 +258,26 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
   };
 
-  private handleReopen = async (): Promise<void> => {
+  private handleReopen = (): void => {
     this.virtualIdsByPhysicalId.clear();
+    const { cancel, isCancelled } = makeCancelToken();
+    this.cancelBackfill = cancel;
     for (const subscription of this.virtualSubscriptionsById.values()) {
-      this.resubscribeAndBackfill(subscription);
+      (async () => {
+        try {
+          await this.resubscribeAndBackfill(isCancelled, subscription);
+        } catch (error) {
+          if (!isCancelled()) {
+            console.error("Error while backfilling", error);
+          }
+        }
+      })();
     }
+    this.startHeartbeat();
   };
 
   private async resubscribeAndBackfill(
+    isCancelled: () => boolean,
     subscription: VirtualSubscription,
   ): Promise<void> {
     const {
@@ -274,50 +290,58 @@ export class AlchemyWebSocketProvider extends EventEmitter
     } = subscription;
     subscription.isBackfilling = true;
     backfillBuffer.length = 0;
-    const physicalId = await this.send(method, params);
-    subscription.physicalId = physicalId;
-    this.virtualIdsByPhysicalId.set(physicalId, virtualId);
-    switch (params[0]) {
-      case "newHeads": {
-        const backfillEvents = await withBackoffRetries(
-          () =>
-            withTimeout(
-              this.backfiller.getNewHeadsBackfill(
-                sentEvents,
-                startingBlockNumber,
+    try {
+      const physicalId = await this.send(method, params);
+      throwIfCancelled(isCancelled);
+      subscription.physicalId = physicalId;
+      this.virtualIdsByPhysicalId.set(physicalId, virtualId);
+      switch (params[0]) {
+        case "newHeads": {
+          const backfillEvents = await withBackoffRetries(
+            () =>
+              withTimeout(
+                this.backfiller.getNewHeadsBackfill(
+                  isCancelled,
+                  sentEvents,
+                  startingBlockNumber,
+                ),
+                10000,
               ),
-              10000,
-            ),
-          5,
-        );
-        const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
-        events.forEach(event => this.emitEvent(virtualId, event));
-        subscription.isBackfilling = false;
-        backfillBuffer.length = 0;
-        break;
-      }
-      case "logs": {
-        const filter: LogsSubscriptionFilter = params[1] || {};
-        const backfillEvents = await withBackoffRetries(
-          () =>
-            withTimeout(
-              this.backfiller.getLogsBackfill(
-                filter,
-                sentEvents,
-                startingBlockNumber,
+            5,
+            () => !isCancelled(),
+          );
+          throwIfCancelled(isCancelled);
+          const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
+          events.forEach(event => this.emitEvent(virtualId, event));
+          break;
+        }
+        case "logs": {
+          const filter: LogsSubscriptionFilter = params[1] || {};
+          const backfillEvents = await withBackoffRetries(
+            () =>
+              withTimeout(
+                this.backfiller.getLogsBackfill(
+                  isCancelled,
+                  filter,
+                  sentEvents,
+                  startingBlockNumber,
+                ),
+                10000,
               ),
-              10000,
-            ),
-          5,
-        );
-        const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
-        events.forEach(event => this.emitEvent(virtualId, event));
-        subscription.isBackfilling = false;
-        backfillBuffer.length = 0;
-        break;
+            5,
+            () => !isCancelled(),
+          );
+          throwIfCancelled(isCancelled);
+          const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
+          events.forEach(event => this.emitEvent(virtualId, event));
+          break;
+        }
+        default:
+          break;
       }
-      default:
-        break;
+    } finally {
+      subscription.isBackfilling = false;
+      backfillBuffer.length = 0;
     }
   }
 
@@ -371,4 +395,8 @@ function addToPastEvents<T>(
     pastEvents.splice(0, index);
   }
   pastEvents.push(event);
+}
+
+function noop(): void {
+  // Nothing.
 }

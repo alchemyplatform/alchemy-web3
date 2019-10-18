@@ -49,6 +49,7 @@ const MAX_RETRY_DELAY = 30000;
 export async function withBackoffRetries<T>(
   f: () => Promise<T>,
   retryCount: number,
+  shouldRetry: (error: unknown) => boolean = () => true,
 ): Promise<T> {
   let nextWaitTime = 0;
   let i = 0;
@@ -57,10 +58,13 @@ export async function withBackoffRetries<T>(
       return await f();
     } catch (error) {
       i++;
-      if (i >= retryCount) {
+      if (i >= retryCount || !shouldRetry(error)) {
         throw error;
       }
       await delay(nextWaitTime);
+      if (!shouldRetry(error)) {
+        throw error;
+      }
       nextWaitTime =
         nextWaitTime === 0
           ? MIN_RETRY_DELAY
@@ -68,3 +72,21 @@ export async function withBackoffRetries<T>(
     }
   }
 }
+
+export interface CancelToken {
+  cancel(): void;
+  isCancelled(): boolean;
+}
+
+export function makeCancelToken(): CancelToken {
+  let cancelled = false;
+  return { cancel: () => (cancelled = true), isCancelled: () => cancelled };
+}
+
+export function throwIfCancelled(isCancelled: () => boolean): void {
+  if (isCancelled()) {
+    throw CANCELLED;
+  }
+}
+
+export const CANCELLED = new Error("Cancelled");

@@ -10,6 +10,7 @@ import { Mocked } from "./testUtils";
 
 let senders: Mocked<JsonRpcSenders>;
 let getNewHeadsBackfill: Backfiller["getNewHeadsBackfill"];
+const isCancelled = () => false;
 
 beforeEach(() => {
   senders = { send: jest.fn(), sendBatch: jest.fn() };
@@ -25,7 +26,7 @@ describe("getNewHeadsBackfill", () => {
     ];
     senders.send.mockResolvedValue(toHex(12));
     senders.sendBatch.mockResolvedValue(heads);
-    const result = await getNewHeadsBackfill([], 9);
+    const result = await getNewHeadsBackfill(isCancelled, [], 9);
     expect(result).toEqual(heads);
     expectGetBlockRangeCalled(10, 13);
   });
@@ -40,7 +41,7 @@ describe("getNewHeadsBackfill", () => {
     senders.send
       .mockResolvedValueOnce(toHex(13))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b"));
-    const result = await getNewHeadsBackfill(previousHeads, 9);
+    const result = await getNewHeadsBackfill(isCancelled, previousHeads, 9);
     expectGetBlockCalled(11);
     expectGetBlockRangeCalled(12, 14);
     expect(result).toEqual(expected);
@@ -59,7 +60,7 @@ describe("getNewHeadsBackfill", () => {
       .mockResolvedValueOnce(makeNewHeadsEvent(12, "c'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(10, "a"));
-    const result = await getNewHeadsBackfill(previousHeads, 9);
+    const result = await getNewHeadsBackfill(isCancelled, previousHeads, 9);
     const expected = [
       makeNewHeadsEvent(11, "b'"),
       makeNewHeadsEvent(12, "c'"),
@@ -86,7 +87,7 @@ describe("getNewHeadsBackfill", () => {
       .mockResolvedValueOnce(makeNewHeadsEvent(12, "c'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(10, "a'"));
-    const result = await getNewHeadsBackfill(previousHeads, 9);
+    const result = await getNewHeadsBackfill(isCancelled, previousHeads, 9);
     const expected = [
       makeNewHeadsEvent(10, "a'"),
       makeNewHeadsEvent(11, "b'"),

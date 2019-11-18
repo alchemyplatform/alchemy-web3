@@ -32,6 +32,8 @@ import { SendPayloadFunction } from "./sendPayload";
 
 const HEARTBEAT_INTERVAL = 30000;
 const HEARTBEAT_WAIT_TIME = 10000;
+const BACKFILL_TIMEOUT = 60000;
+const BACKFILL_RETRIES = 5;
 
 /**
  * This is the undocumented interface required by Web3 for providers which
@@ -268,7 +270,10 @@ export class AlchemyWebSocketProvider extends EventEmitter
           await this.resubscribeAndBackfill(isCancelled, subscription);
         } catch (error) {
           if (!isCancelled()) {
-            console.error("Error while backfilling", error);
+            console.error(
+              `Error while backfilling "${subscription.params[0]}" subscription. Some events may be missing.`,
+              error,
+            );
           }
         }
       })();
@@ -305,9 +310,9 @@ export class AlchemyWebSocketProvider extends EventEmitter
                   sentEvents,
                   startingBlockNumber,
                 ),
-                10000,
+                BACKFILL_TIMEOUT,
               ),
-            5,
+            BACKFILL_RETRIES,
             () => !isCancelled(),
           );
           throwIfCancelled(isCancelled);
@@ -326,9 +331,9 @@ export class AlchemyWebSocketProvider extends EventEmitter
                   sentEvents,
                   startingBlockNumber,
                 ),
-                10000,
+                BACKFILL_TIMEOUT,
               ),
-            5,
+            BACKFILL_RETRIES,
             () => !isCancelled(),
           );
           throwIfCancelled(isCancelled);

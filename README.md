@@ -268,6 +268,20 @@ An object with the following fields:
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
 
+### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
+
+Subscribes to pending transactions, similar to the standard Web3 call
+`web3.eth.subscribe("pendingTransactions")`, but differs in that it emits
+full transaction information rather than just transaction hashes.
+
+Note that the argument passed to this function is
+`"alchemy_fullPendingTransactions"`, which is different from the string used in
+raw `eth_subscribe` JSON-RPC calls, where it is
+`"alchemy_newFullPendingTransactions"` instead. This is confusing, but it is
+also consistent with the existing Web3 subscription APIs (for example:
+`web3.eth.subscribe("pendingTransactions")` vs `"newPendingTransactions"` in raw
+JSON-RPC).
+
 <br/>
 
 Copyright © 2019 Alchemy Insights Inc.

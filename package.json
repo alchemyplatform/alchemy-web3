@@ -68,6 +68,9 @@
     "fetch-ponyfill": "^6.0.2",
     "sturdy-websocket": "^0.2.1",
     "web3": "1.0.0-beta.55",
+    "web3-core": "1.0.0-beta.55",
+    "web3-core-subscriptions": "1.0.0-beta.55",
+    "web3-eth": "1.0.0-beta.55",
     "web3-providers": "1.0.0-beta.55",
     "websocket": "^1.0.28"
   }

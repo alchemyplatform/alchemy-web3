@@ -1,7 +1,10 @@
 import Web3 from "web3";
+import { Log, Transaction } from "web3-core";
+import { BlockHeader, Eth, LogsOptions, Subscription, Syncing } from "web3-eth";
 import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
+import FullTransactionsSubscription from "./web3-adapter/fullTransactionsSubscription";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
@@ -9,6 +12,7 @@ const DEFAULT_RETRY_JITTER = 250;
 
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
+  eth: AlchemyEth;
   setWriteProvider(provider: Provider | null | undefined): void;
 }
 
@@ -62,6 +66,50 @@ export interface TokenMetadataResponse {
   symbol: string | null;
 }
 
+/**
+ * Same as Eth, but with `subscribe` allowing more types.
+ */
+export interface AlchemyEth extends Eth {
+  subscribe(
+    type: "logs",
+    options?: LogsOptions,
+    callback?: (error: Error, log: Log) => void,
+  ): Subscription<Log>;
+  subscribe(
+    type: "syncing",
+    options?: null,
+    callback?: (error: Error, result: Syncing) => void,
+  ): Subscription<Syncing>;
+  subscribe(
+    type: "newBlockHeaders",
+    options?: null,
+    callback?: (error: Error, blockHeader: BlockHeader) => void,
+  ): Subscription<BlockHeader>;
+  subscribe(
+    type: "pendingTransactions",
+    options?: null,
+    callback?: (error: Error, transactionHash: string) => void,
+  ): Subscription<string>;
+  subscribe(
+    type: "alchemy_fullPendingTransactions",
+    options?: null,
+    callback?: (error: Error, transaction: Transaction) => void,
+  ): Subscription<Transaction>;
+  subscribe(
+    type:
+      | "pendingTransactions"
+      | "logs"
+      | "syncing"
+      | "newBlockHeaders"
+      | "alchemy_fullPendingTransactions",
+    options?: null | LogsOptions,
+    callback?: (
+      error: Error,
+      item: Log | Syncing | BlockHeader | string | Transaction,
+    ) => void,
+  ): Subscription<Log | BlockHeader | Syncing | string>;
+}
+
 interface EthereumWindow extends Window {
   ethereum?: any;
 }
@@ -111,6 +159,7 @@ export function createAlchemyWeb3(
         method: "alchemy_getTokenMetadata",
       }),
   };
+  patchSubscriptions(alchemyWeb3);
   return alchemyWeb3;
 }
 
@@ -160,6 +209,29 @@ function processTokenBalanceResponse(
       : balance,
   );
   return { ...rawResponse, tokenBalances: fixedTokenBalances };
+}
+
+/**
+ * Updates Web3's internal subscription architecture to also handle Alchemy
+ * specific subscriptions.
+ */
+function patchSubscriptions(web3: Web3): void {
+  const { subscriptionsFactory } = web3.eth as any;
+  const oldGetSubscription = subscriptionsFactory.getSubscription.bind(
+    subscriptionsFactory,
+  );
+  subscriptionsFactory.getSubscription = (...args: any[]) => {
+    const [moduleInstance, type] = args;
+    if (type === "alchemy_newFullPendingTransactions") {
+      return new FullTransactionsSubscription(
+        subscriptionsFactory.utils,
+        subscriptionsFactory.formatters,
+        moduleInstance,
+      );
+    } else {
+      return oldGetSubscription(...args);
+    }
+  };
 }
 
 /**

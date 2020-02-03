@@ -223,40 +223,41 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
     const physicalId = message.params.subscription;
     const virtualId = this.virtualIdsByPhysicalId.get(physicalId);
-    if (virtualId) {
-      const subscription = this.virtualSubscriptionsById.get(virtualId)!;
-      if (subscription.method === "eth_subscribe") {
-        switch (subscription.params[0]) {
-          case "newHeads": {
-            const newHeadsSubscription = subscription as NewHeadsSubscription;
-            const newHeadsMessage = message as SubscriptionEvent<NewHeadsEvent>;
-            const { isBackfilling, backfillBuffer } = newHeadsSubscription;
-            const { result } = newHeadsMessage.params;
-            if (isBackfilling) {
-              addToNewHeadsEvents(backfillBuffer, result);
-            } else {
-              this.emitEvent(virtualId, result);
-            }
-            break;
-          }
-          case "logs": {
-            const logsSubscription = subscription as LogsSubscription;
-            const logsMessage = message as SubscriptionEvent<LogsEvent>;
-            const { isBackfilling, backfillBuffer } = logsSubscription;
-            const { result } = logsMessage.params;
-            if (isBackfilling) {
-              addToLogsEvents(backfillBuffer, result);
-            } else {
-              this.emitEvent(virtualId, result);
-            }
-            break;
-          }
-          default:
-            this.emitEvent(virtualId, message.params.result);
+    if (!virtualId) {
+      return;
+    }
+    const subscription = this.virtualSubscriptionsById.get(virtualId)!;
+    if (subscription.method !== "eth_subscribe") {
+      this.emit(virtualId, message.params.result);
+      return;
+    }
+    switch (subscription.params[0]) {
+      case "newHeads": {
+        const newHeadsSubscription = subscription as NewHeadsSubscription;
+        const newHeadsMessage = message as SubscriptionEvent<NewHeadsEvent>;
+        const { isBackfilling, backfillBuffer } = newHeadsSubscription;
+        const { result } = newHeadsMessage.params;
+        if (isBackfilling) {
+          addToNewHeadsEvents(backfillBuffer, result);
+        } else {
+          this.emitEvent(virtualId, result);
         }
-      } else {
-        this.emit(virtualId, message.params.result);
+        break;
       }
+      case "logs": {
+        const logsSubscription = subscription as LogsSubscription;
+        const logsMessage = message as SubscriptionEvent<LogsEvent>;
+        const { isBackfilling, backfillBuffer } = logsSubscription;
+        const { result } = logsMessage.params;
+        if (isBackfilling) {
+          addToLogsEvents(backfillBuffer, result);
+        } else {
+          this.emitEvent(virtualId, result);
+        }
+        break;
+      }
+      default:
+        this.emitEvent(virtualId, message.params.result);
     }
   };
 

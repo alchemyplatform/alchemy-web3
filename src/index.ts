@@ -222,7 +222,7 @@ function patchSubscriptions(web3: Web3): void {
   );
   subscriptionsFactory.getSubscription = (...args: any[]) => {
     const [moduleInstance, type] = args;
-    if (type === "alchemy_newFullPendingTransactions") {
+    if (type === "alchemy_fullPendingTransactions") {
       return new FullTransactionsSubscription(
         subscriptionsFactory.utils,
         subscriptionsFactory.formatters,

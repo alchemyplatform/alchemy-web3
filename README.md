@@ -96,9 +96,9 @@ web3.eth
 If the user has a provider in their browser available at `window.ethereum`, then
 any methods which involve user accounts or signing will automatically use it.
 This provider might be injected by [Metamask](https://metamask.io/), [Trust
-Wallet](https://trustwallet.com/dapp), or other browsers or browser extensions
-if the user has them installed. For example, the following will use a provider
-from the user's browser:
+Wallet](https://trustwallet.com/dapp) or other browsers or browser extensions if
+the user has them installed. For example, the following will use a provider from
+the user's browser:
 
 ```ts
 web3.eth.getAccounts().then(accounts => {

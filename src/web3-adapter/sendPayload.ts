@@ -13,7 +13,6 @@ import { AlchemySendFunction } from "./alchemySend";
 
 const ALCHEMY_DISALLOWED_METHODS: string[] = [
   "eth_accounts",
-  "eth_sendRawTransaction",
   "eth_sendTransaction",
   "eth_sign",
   "eth_signTypedData_v3",

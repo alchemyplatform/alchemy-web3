@@ -1,6 +1,7 @@
 import Web3 from "web3";
 import { Log, Transaction } from "web3-core";
 import { BlockHeader, Eth, LogsOptions, Subscription, Syncing } from "web3-eth";
+import { hexToNumberString } from "web3-utils";
 import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
@@ -205,7 +206,7 @@ function processTokenBalanceResponse(
   // Convert token balance fields from hex-string to decimal-string.
   const fixedTokenBalances = rawResponse.tokenBalances.map(balance =>
     balance.tokenBalance != null
-      ? { ...balance, tokenBalance: hexToDecimal(balance.tokenBalance) }
+      ? { ...balance, tokenBalance: hexToNumberString(balance.tokenBalance) }
       : balance,
   );
   return { ...rawResponse, tokenBalances: fixedTokenBalances };
@@ -232,31 +233,6 @@ function patchSubscriptions(web3: Web3): void {
       return oldGetSubscription(...args);
     }
   };
-}
-
-/**
- * Converts a hex string to a string of a decimal number. Works even with
- * numbers so large that they cannot fit into a double without losing precision.
- */
-function hexToDecimal(hex: string): string {
-  if (hex.startsWith("0x")) {
-    return hexToDecimal(hex.slice(2));
-  }
-  // https://stackoverflow.com/a/21675915/2695248
-  const digits = [0];
-  for (let i = 0; i < hex.length; i += 1) {
-    let carry = parseInt(hex.charAt(i), 16);
-    for (let j = 0; j < digits.length; j += 1) {
-      digits[j] = digits[j] * 16 + carry;
-      carry = (digits[j] / 10e16) | 0;
-      digits[j] %= 10e16;
-    }
-    while (carry > 0) {
-      digits.push(carry % 10e16);
-      carry = (carry / 10e16) | 0;
-    }
-  }
-  return digits.reverse().join("");
 }
 
 function noop(): void {

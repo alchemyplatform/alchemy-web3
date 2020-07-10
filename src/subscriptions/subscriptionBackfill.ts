@@ -126,6 +126,9 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     fromBlockInclusive: number,
     toBlockExclusive: number,
   ): Promise<NewHeadsEvent[]> {
+    if (fromBlockInclusive >= toBlockExclusive) {
+      return [];
+    }
     const batchParts: BatchPart[] = [];
     for (let i = fromBlockInclusive; i < toBlockExclusive; i++) {
       batchParts.push({
@@ -199,11 +202,14 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     return Number.NEGATIVE_INFINITY;
   }
 
-  function getLogsInRange(
+  async function getLogsInRange(
     filter: LogsSubscriptionFilter,
     fromBlockInclusive: number,
     toBlockExclusive: number,
   ): Promise<LogsEvent[]> {
+    if (fromBlockInclusive >= toBlockExclusive) {
+      return [];
+    }
     const rangeFilter: GetLogsOptions = {
       ...filter,
       fromBlock: toHex(fromBlockInclusive),

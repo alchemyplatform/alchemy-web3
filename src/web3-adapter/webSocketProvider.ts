@@ -34,6 +34,17 @@ const HEARTBEAT_INTERVAL = 30000;
 const HEARTBEAT_WAIT_TIME = 10000;
 const BACKFILL_TIMEOUT = 60000;
 const BACKFILL_RETRIES = 5;
+/**
+ * Subscriptions have a memory of recent events they have sent so that in the
+ * event that they disconnect and need to backfill, they can detect re-orgs.
+ * Keep a buffer that goes back at least these many blocks, the maximum amount
+ * at which we might conceivably see a re-org.
+ *
+ * Note that while our buffer goes back this many blocks, it may contain more
+ * than this many elements, since in the case of logs subscriptions more than
+ * one event may be emitted for a block.
+ */
+const RETAINED_EVENT_BLOCK_COUNT = 10;
 
 /**
  * This is the undocumented interface required by Web3 for providers which
@@ -86,8 +97,6 @@ interface LogsSubscription extends VirtualSubscription {
   sentEvents: LogsEvent[];
   backfillBuffer: LogsEvent[];
 }
-
-const RETAINED_EVENT_BLOCK_COUNT = 10;
 
 export class AlchemyWebSocketProvider extends EventEmitter
   implements Web3SubscriptionProvider {
@@ -238,9 +247,9 @@ export class AlchemyWebSocketProvider extends EventEmitter
         const { isBackfilling, backfillBuffer } = newHeadsSubscription;
         const { result } = newHeadsMessage.params;
         if (isBackfilling) {
-          addToNewHeadsEvents(backfillBuffer, result);
+          addToNewHeadsEventsBuffer(backfillBuffer, result);
         } else {
-          this.emitEvent(virtualId, result);
+          this.emitNewHeadsEvent(virtualId, result);
         }
         break;
       }
@@ -250,14 +259,14 @@ export class AlchemyWebSocketProvider extends EventEmitter
         const { isBackfilling, backfillBuffer } = logsSubscription;
         const { result } = logsMessage.params;
         if (isBackfilling) {
-          addToLogsEvents(backfillBuffer, result);
+          addToLogsEventsBuffer(backfillBuffer, result);
         } else {
-          this.emitEvent(virtualId, result);
+          this.emitLogsEvent(virtualId, result);
         }
         break;
       }
       default:
-        this.emitEvent(virtualId, message.params.result);
+        this.emit(virtualId, message.params.result);
     }
   };
 
@@ -318,7 +327,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
           );
           throwIfCancelled(isCancelled);
           const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
-          events.forEach(event => this.emitEvent(virtualId, event));
+          events.forEach(event => this.emitNewHeadsEvent(virtualId, event));
           break;
         }
         case "logs": {
@@ -339,7 +348,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
           );
           throwIfCancelled(isCancelled);
           const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
-          events.forEach(event => this.emitEvent(virtualId, event));
+          events.forEach(event => this.emitLogsEvent(virtualId, event));
           break;
         }
         default:
@@ -356,7 +365,24 @@ export class AlchemyWebSocketProvider extends EventEmitter
     return fromHex(blockNumberHex);
   }
 
-  private emitEvent(virtualId: string, result: any): void {
+  private emitNewHeadsEvent(virtualId: string, result: NewHeadsEvent): void {
+    this.emitAndRememberEvent(virtualId, result, getNewHeadsBlockNumber);
+  }
+
+  private emitLogsEvent(virtualId: string, result: LogsEvent): void {
+    this.emitAndRememberEvent(virtualId, result, getLogsBlockNumber);
+  }
+
+  /**
+   * Emits an event to consumers, but also remembers it in its subscriptions's
+   * `sentEvents` buffer so that we can detect re-orgs if the connection drops
+   * and needs to be reconnected.
+   */
+  private emitAndRememberEvent<T>(
+    virtualId: string,
+    result: T,
+    getBlockNumber: (result: T) => number,
+  ): void {
     const subscription = this.virtualSubscriptionsById.get(virtualId);
     if (!subscription) {
       return;
@@ -364,7 +390,11 @@ export class AlchemyWebSocketProvider extends EventEmitter
     // Web3 modifies these event objects once we pass them on (changing hex
     // numbers to numbers). We want the original event, so make a defensive
     // copy.
-    subscription.sentEvents.push({ ...result });
+    addToPastEventsBuffer(
+      subscription.sentEvents,
+      { ...result },
+      getBlockNumber,
+    );
     const event: SubscriptionEvent["params"] = {
       subscription: virtualId,
       result,
@@ -373,34 +403,49 @@ export class AlchemyWebSocketProvider extends EventEmitter
   }
 }
 
-function addToNewHeadsEvents(
+function addToNewHeadsEventsBuffer(
   pastEvents: NewHeadsEvent[],
   event: NewHeadsEvent,
 ): void {
-  addToPastEvents(pastEvents, event, e => fromHex(e.number));
+  addToPastEventsBuffer(pastEvents, event, getNewHeadsBlockNumber);
 }
 
-function addToLogsEvents(pastEvents: LogsEvent[], event: LogsEvent): void {
-  addToPastEvents(pastEvents, event, e => fromHex(e.blockNumber));
+function addToLogsEventsBuffer(
+  pastEvents: LogsEvent[],
+  event: LogsEvent,
+): void {
+  addToPastEventsBuffer(pastEvents, event, getLogsBlockNumber);
 }
 
 /**
- * Copies an array of past events and adds a new one, evicting any events which
+ * Adds a new event to an array of events, evicting any events which
  * are so old that they will no longer feasibly be part of a reorg.
  */
-function addToPastEvents<T>(
+function addToPastEventsBuffer<T>(
   pastEvents: T[],
   event: T,
   getBlockNumber: (event: T) => number,
 ): void {
   const currentBlockNumber = getBlockNumber(event);
-  const index = pastEvents.findIndex(
-    e => currentBlockNumber < getBlockNumber(e) + RETAINED_EVENT_BLOCK_COUNT,
+  // Find first index of an event recent enough to retain, then drop everything
+  // at a lower index.
+  const firstGoodIndex = pastEvents.findIndex(
+    e => getBlockNumber(e) > currentBlockNumber - RETAINED_EVENT_BLOCK_COUNT,
   );
-  if (index >= 0) {
-    pastEvents.splice(0, index);
+  if (firstGoodIndex === -1) {
+    pastEvents.length = 0;
+  } else {
+    pastEvents.splice(0, firstGoodIndex);
   }
   pastEvents.push(event);
+}
+
+function getNewHeadsBlockNumber(event: NewHeadsEvent): number {
+  return fromHex(event.number);
+}
+
+function getLogsBlockNumber(event: LogsEvent): number {
+  return fromHex(event.blockNumber);
 }
 
 function noop(): void {

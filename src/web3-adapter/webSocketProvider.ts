@@ -237,7 +237,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
     const subscription = this.virtualSubscriptionsById.get(virtualId)!;
     if (subscription.method !== "eth_subscribe") {
-      this.emit(virtualId, message.params.result);
+      this.emitGenericEvent(virtualId, message.params.result);
       return;
     }
     switch (subscription.params[0]) {
@@ -266,7 +266,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
         break;
       }
       default:
-        this.emit(virtualId, message.params.result);
+        this.emitGenericEvent(virtualId, message.params.result);
     }
   };
 
@@ -395,6 +395,10 @@ export class AlchemyWebSocketProvider extends EventEmitter
       { ...result },
       getBlockNumber,
     );
+    this.emitGenericEvent(virtualId, result);
+  }
+
+  private emitGenericEvent(virtualId: string, result: any): void {
     const event: SubscriptionEvent["params"] = {
       subscription: virtualId,
       result,

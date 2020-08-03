@@ -213,7 +213,7 @@ following advantages over standard Web3 subscriptions:
 
 ## Alchemy's Enhanced API
 
-The produced client also grants easy access to Alchemy's [enhanced API](https://docs.alchemyapi.io/docs/enhanced-api).
+The produced client also grants easy access to Alchemy's [enhanced API](https://docs.alchemyapi.io/documentation/alchemy-web3/enhanced-web3-api).
 
 ### `web3.alchemy.getTokenAllowance({contract, owner, spender})`
 

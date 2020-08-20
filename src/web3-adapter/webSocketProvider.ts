@@ -210,7 +210,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
     this.heartbeatIntervalId = setInterval(async () => {
       try {
-        await withTimeout(this.send("web3_clientVersion"), HEARTBEAT_WAIT_TIME);
+        await withTimeout(this.send("net_version"), HEARTBEAT_WAIT_TIME);
       } catch {
         this.ws.reconnect();
       }

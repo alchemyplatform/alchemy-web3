@@ -1,7 +1,7 @@
 import Web3 from "web3";
 import { Log, Transaction } from "web3-core";
 import { BlockHeader, Eth, LogsOptions, Subscription, Syncing } from "web3-eth";
-import { hexToNumberString } from "web3-utils";
+import { hexToNumberString, toHex } from "web3-utils";
 import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
@@ -31,6 +31,10 @@ export interface AlchemyMethods {
     address: string,
     callback?: Web3Callback<TokenMetadataResponse>,
   ): Promise<TokenMetadataResponse>;
+  getAssetTransfers(
+    params: AssetTransfersParams,
+    callback?: Web3Callback<AssetTransfersResponse>,
+  ): Promise<AssetTransfersResponse>;
 }
 
 export interface TokenAllowanceParams {
@@ -65,6 +69,46 @@ export interface TokenMetadataResponse {
   logo: string | null;
   name: string | null;
   symbol: string | null;
+}
+
+export interface AssetTransfersParams {
+  fromBlock?: string;
+  toBlock?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  contractAddresses?: string[];
+  excludeZeroValue?: boolean;
+  maxCount?: number;
+  category?: AssetTransfersCategory[];
+  pageKey?: string;
+}
+
+export enum AssetTransfersCategory {
+  EXTERNAL = "external",
+  TOKEN = "token",
+}
+
+export interface AssetTransfersResponse {
+  transfers: AssetTransfersResult[];
+  pageKey?: string;
+}
+
+export interface AssetTransfersResult {
+  category: AssetTransfersCategory;
+  blockNum: string;
+  from: string;
+  to: string | null;
+  value: number | null;
+  erc721TokenId: string | null;
+  asset: string | null;
+  hash: string;
+  rawContract: RawContract;
+}
+
+export interface RawContract {
+  value: string | null;
+  address: string | null;
+  decimal: string | null;
 }
 
 /**
@@ -158,6 +202,18 @@ export function createAlchemyWeb3(
         callback,
         params: [address],
         method: "alchemy_getTokenMetadata",
+      }),
+    getAssetTransfers: (params: AssetTransfersParams, callback) =>
+      callAlchemyMethod({
+        send,
+        callback,
+        params: [
+          {
+            ...params,
+            maxCount: params.maxCount ? toHex(params.maxCount) : undefined,
+          },
+        ],
+        method: "alchemy_getAssetTransfers",
       }),
   };
   patchSubscriptions(alchemyWeb3);

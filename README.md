@@ -56,7 +56,7 @@ import { createAlchemyWeb3 } from "@alch/alchemy-web3";
 
 // Using HTTPS
 const web3 = createAlchemyWeb3(
-  "https://eth-mainnet.alchemyapi.io/jsonrpc/<api-key>",
+  "https://eth-mainnet.alchemyapi.io/v2/<api-key>",
 );
 ```
 
@@ -210,6 +210,49 @@ following advantages over standard Web3 subscriptions:
   the requests once the connection is reopened. Note that it is still possible,
   with a lower likelihood, for outgoing requests to be lost, so you should still
   have error handling as with any network request.
+
+## Alchemy's Transfers API
+
+The produced client also grants easy access to Alchemy's [transfer API](https://docs.alchemyapi.io/documentation/alchemy-api-reference/transfers-api).
+
+### `web3.alchemy.getAssetTransfers({fromBlock, toBlock, fromAddress, toAddress, contractAddresses, excludeZeroValue, maxCount, category, pageKey})`
+
+Returns an array of asset transfers based on the specified parameters.
+
+**Parameters:**
+
+An object with the following fields:
+
+- `fromBlock`: Optional inclusive from hex string block (default latest)
+- `toBlock`: Optional inclusive to hex string block (default latest)
+- `fromAddress`: Optional from hex string address (default wildcard)
+- `toAddress`: Optional to hex string address (default wildcard)
+  NOTE: `fromAddress` is ANDed with `toAddress`
+- `contractAddresses`: Optional array of hex string contract addresses for "token" transfers (default wildcard)
+  NOTE: `contractAddresses` are ORed together
+- `excludeZeroValue`: Optional boolean to exclude transfers with zero value (default true)
+- `maxCount`: Optional number to restrict payload size (default and max of 1000)
+- `category`: Optional array of categories (default all categories ["external", "token"])
+- `pageKey`: Optional uuid pageKey to retrieve the next payload
+
+**Returns:**
+
+An object with the following fields:
+
+- `pageKey`: Uuid for next page of results (undefined for the last page of results).
+- `transfers`: An array of objects with the following fields sorted in ascending order by block number
+  - `category`: "external" or "internal" - label for the transfer
+  - `blockNum`: The block where the transfer occurred (hex string).
+  - `from`: From address of transfer (hex string).
+  - `to`: To address of transfer (hex string). `null` if contract creation.
+  - `value`: Converted asset transfer value as a number (raw value divided by contract decimal). `null` if erc721 transfer or contract decimal not available.
+  - `erc721TokenId`: Raw erc721 token id (hex string). `null` if not an erc721 "token" transfer
+  - `asset`: "ETH" or the token's symbol. `null` if not defined in the contract and not available from other sources.
+  - `hash`: Transaction hash (hex string).
+  - `rawContract`: Object of raw values:
+    - `value`: Raw transfer value (hex string). `null` if erc721 transfer
+    - `address`: Contract address (hex string). `null` if "external"
+    - `decimal`: Contract decimal (hex string). `null` if not defined in the contract and not available from other sources.
 
 ## Alchemy's Enhanced API
 

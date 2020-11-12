@@ -85,6 +85,7 @@ export interface AssetTransfersParams {
 
 export enum AssetTransfersCategory {
   EXTERNAL = "external",
+  INTERNAL = "internal",
   TOKEN = "token",
 }
 

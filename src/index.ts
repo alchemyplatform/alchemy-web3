@@ -85,6 +85,7 @@ export interface AssetTransfersParams {
 
 export enum AssetTransfersCategory {
   EXTERNAL = "external",
+  INTERNAL = "internal",
   TOKEN = "token",
 }
 
@@ -210,7 +211,8 @@ export function createAlchemyWeb3(
         params: [
           {
             ...params,
-            maxCount: params.maxCount ? toHex(params.maxCount) : undefined,
+            maxCount:
+              params.maxCount != null ? toHex(params.maxCount) : undefined,
           },
         ],
         method: "alchemy_getAssetTransfers",

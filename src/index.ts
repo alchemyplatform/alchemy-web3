@@ -212,9 +212,7 @@ export function createAlchemyWeb3(
           {
             ...params,
             maxCount:
-              params.maxCount !== undefined
-                ? toHex(params.maxCount)
-                : undefined,
+              params.maxCount != null ? toHex(params.maxCount) : undefined,
           },
         ],
         method: "alchemy_getAssetTransfers",

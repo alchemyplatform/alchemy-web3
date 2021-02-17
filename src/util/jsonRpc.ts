@@ -1,4 +1,9 @@
-import { JsonRpcRequest, SendFunction } from "../types";
+import {
+  JsonRpcId,
+  JsonRpcRequest,
+  JsonRpcResponse,
+  SendFunction,
+} from "../types";
 import { SendPayloadFunction } from "../web3-adapter/sendPayload";
 
 export type PayloadFactory = (method: string, params?: any[]) => JsonRpcRequest;
@@ -15,7 +20,12 @@ export interface BatchPart {
 
 export function makePayloadFactory(): PayloadFactory {
   let nextId = 0;
-  return (method, params) => ({ method, params, jsonrpc: "2.0", id: nextId++ });
+  return (method, params) => ({
+    method,
+    params,
+    jsonrpc: "2.0",
+    id: `alc-web3:${nextId++}`,
+  });
 }
 
 export function makeSenders(
@@ -41,15 +51,19 @@ export function makeSenders(
         : "Batch request failed";
       throw new Error(message);
     }
-    const errorResponse = response.find(r => !!r.error);
+    const errorResponse = response.find((r) => !!r.error);
     if (errorResponse) {
       throw new Error(errorResponse.error!.message);
     }
     // The ids are ascending numbers because that's what Payload Factories do.
     return response
       .sort((r1, r2) => (r1.id as number) - (r2.id as number))
-      .map(r => r.result);
+      .map((r) => r.result);
   }
 
   return { send, sendBatch };
+}
+
+export function makeResponse<T>(id: JsonRpcId, result: T): JsonRpcResponse<T> {
+  return { jsonrpc: "2.0", id, result };
 }

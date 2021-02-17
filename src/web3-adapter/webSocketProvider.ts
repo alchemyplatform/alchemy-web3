@@ -12,17 +12,16 @@ import {
 import {
   isSubscriptionEvent,
   JsonRpcRequest,
-  SendFunction,
+  JsonRpcResponse,
+  SingleOrBatchRequest,
+  SingleOrBatchResponse,
   SubscriptionEvent,
   WebSocketMessage,
 } from "../types";
 import { fromHex } from "../util/hex";
+import { JsonRpcSenders, makeResponse } from "../util/jsonRpc";
 import {
-  JsonRpcSenders,
-  makePayloadFactory,
-  makeSenders,
-} from "../util/jsonRpc";
-import {
+  callWhenDone,
   makeCancelToken,
   throwIfCancelled,
   withBackoffRetries,
@@ -51,24 +50,18 @@ const RETAINED_EVENT_BLOCK_COUNT = 10;
  * handle subscriptions.
  *
  * In addition to the stated methods here, it communicates subscription events
- * by using EventEmitter#emit() to emit the events, with the appropriate
- * subscription id as the event type.
+ * by using `EventEmitter#emit("data", event)` to emit the events.
  */
 export interface Web3SubscriptionProvider extends EventEmitter {
-  sendPayload: SendPayloadFunction;
-  send(method: string, params?: any[]): Promise<any>;
-  sendBatch(methods: any[], moduleInstance: any): Promise<any>;
-  supportsSubscriptions(): true;
-  subscribe(
-    subscribeMethod: string | undefined,
-    subscriptionMethod: string,
-    parameters: any[],
-  ): Promise<string>;
-  unsubscribe(
-    subscriptionId: string,
-    unsubscribeMethod?: string,
-  ): Promise<boolean>;
+  send(
+    payload: SingleOrBatchRequest,
+    callback: (error: any, response?: SingleOrBatchResponse) => void,
+  ): void;
   disconnect(code?: number, reason?: string): void;
+  supportsSubscriptions(): true;
+  connect(): void;
+  reset(): void;
+  reconnect(): void;
 }
 
 interface VirtualSubscription {
@@ -98,7 +91,8 @@ interface LogsSubscription extends VirtualSubscription {
   backfillBuffer: LogsEvent[];
 }
 
-export class AlchemyWebSocketProvider extends EventEmitter
+export class AlchemyWebSocketProvider
+  extends EventEmitter
   implements Web3SubscriptionProvider {
   // In the case of a WebSocket reconnection, all subscriptions are lost and we
   // create new ones to replace them, but we want to create the illusion that
@@ -111,37 +105,70 @@ export class AlchemyWebSocketProvider extends EventEmitter
     VirtualSubscription
   > = new Map();
   private readonly virtualIdsByPhysicalId: Map<string, string> = new Map();
-  private readonly makePayload = makePayloadFactory();
-  private readonly senders: JsonRpcSenders;
   private readonly backfiller: Backfiller;
   private heartbeatIntervalId?: NodeJS.Timeout;
   private cancelBackfill = noop;
 
   constructor(
     private readonly ws: SturdyWebSocket,
-    public readonly sendPayload: SendPayloadFunction,
+    private readonly sendPayload: SendPayloadFunction,
+    private readonly senders: JsonRpcSenders,
   ) {
     super();
-    this.senders = makeSenders(sendPayload, this.makePayload);
-    this.backfiller = makeBackfiller(this.senders);
-    this.send = this.senders.send;
+    this.backfiller = makeBackfiller(senders);
     this.addSocketListeners();
     this.startHeartbeat();
+  }
+
+  public send(
+    request: SingleOrBatchRequest,
+    callback: (error: any, response?: SingleOrBatchResponse) => void,
+  ): void {
+    if (isSubscribeRequest(request)) {
+      const { id } = request;
+      if (id === undefined) {
+        // The JSON-RPC spec says to return nothing if there is no request id.
+        return;
+      }
+      callWhenDone(this.subscribe(request), callback);
+      return;
+    }
+    if (isUnsubscribeRequest(request)) {
+      callWhenDone(this.unsubscribe(request), callback);
+      return;
+    }
+    callWhenDone(this.sendPayload(request), callback);
   }
 
   public supportsSubscriptions(): true {
     return true;
   }
 
-  public async subscribe(
-    subscribeMethod = "eth_subscribe",
-    subscriptionMethod: string,
-    parameters: any[],
-  ): Promise<string> {
-    const method = subscribeMethod;
-    const params = [subscriptionMethod, ...parameters];
+  public disconnect(code?: number, reason?: string): void {
+    this.removeSocketListeners();
+    this.removeAllListeners();
+    this.stopHeartbeatAndBackfill();
+    this.ws.close(code, reason);
+  }
+
+  public connect(): void {
+    // No-op. We're already connected when passed a websocket in the
+    // constructor.
+  }
+
+  public reset(): void {
+    // No-op.
+  }
+
+  public reconnect(): void {
+    // No-op. This isn't called anywhere.
+  }
+
+  private async subscribe(request: JsonRpcRequest): Promise<JsonRpcResponse> {
+    const { method, params = [] } = request;
     const startingBlockNumber = await this.getBlockNumber();
-    const id = await this.send(method, params);
+    const response = await this.sendPayload(request);
+    const id = response.result;
     this.virtualSubscriptionsById.set(id, {
       method,
       params,
@@ -153,43 +180,23 @@ export class AlchemyWebSocketProvider extends EventEmitter
       backfillBuffer: [],
     });
     this.virtualIdsByPhysicalId.set(id, id);
-    return id;
+    return makeResponse(request.id!, id);
   }
 
-  public async unsubscribe(
-    subscriptionId: string,
-    unsubscribeMethod = "eth_unsubscribe",
-  ): Promise<boolean> {
+  private async unsubscribe(request: JsonRpcRequest): Promise<JsonRpcResponse> {
+    const subscriptionId = request.params?.[0];
     const virtualSubscription = this.virtualSubscriptionsById.get(
       subscriptionId,
     );
     if (!virtualSubscription) {
-      return false;
+      return makeResponse(request.id!, false);
     }
     const { physicalId } = virtualSubscription;
-    const response = await this.send(unsubscribeMethod, [physicalId]);
+    const physicalRequest = { ...request, params: [physicalId] };
+    await this.sendPayload(physicalRequest);
     this.virtualSubscriptionsById.delete(subscriptionId);
     this.virtualIdsByPhysicalId.delete(physicalId);
-    return response;
-  }
-
-  public disconnect(code?: number, reason?: string): void {
-    this.removeSocketListeners();
-    this.removeAllListeners();
-    this.stopHeartbeatAndBackfill();
-    this.ws.close(code, reason);
-  }
-
-  // tslint:disable-next-line: member-ordering
-  public readonly send: SendFunction;
-
-  public sendBatch(methods: any[], moduleInstance: any): Promise<any> {
-    const payload: JsonRpcRequest[] = [];
-    methods.forEach(method => {
-      method.beforeExecution(moduleInstance);
-      payload.push(this.makePayload(method.rpcMethod, method.parameters));
-    });
-    return this.sendPayload(payload);
+    return makeResponse(request.id!, true);
   }
 
   private addSocketListeners(): void {
@@ -210,7 +217,10 @@ export class AlchemyWebSocketProvider extends EventEmitter
     }
     this.heartbeatIntervalId = setInterval(async () => {
       try {
-        await withTimeout(this.send("net_version"), HEARTBEAT_WAIT_TIME);
+        await withTimeout(
+          this.senders.send("net_version"),
+          HEARTBEAT_WAIT_TIME,
+        );
       } catch {
         this.ws.reconnect();
       }
@@ -306,7 +316,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
     subscription.isBackfilling = true;
     backfillBuffer.length = 0;
     try {
-      const physicalId = await this.send(method, params);
+      const physicalId = await this.senders.send(method, params);
       throwIfCancelled(isCancelled);
       subscription.physicalId = physicalId;
       this.virtualIdsByPhysicalId.set(physicalId, virtualId);
@@ -327,7 +337,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
           );
           throwIfCancelled(isCancelled);
           const events = dedupeNewHeads([...backfillEvents, ...backfillBuffer]);
-          events.forEach(event => this.emitNewHeadsEvent(virtualId, event));
+          events.forEach((event) => this.emitNewHeadsEvent(virtualId, event));
           break;
         }
         case "logs": {
@@ -348,7 +358,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
           );
           throwIfCancelled(isCancelled);
           const events = dedupeLogs([...backfillEvents, ...backfillBuffer]);
-          events.forEach(event => this.emitLogsEvent(virtualId, event));
+          events.forEach((event) => this.emitLogsEvent(virtualId, event));
           break;
         }
         default:
@@ -361,7 +371,7 @@ export class AlchemyWebSocketProvider extends EventEmitter
   }
 
   private async getBlockNumber(): Promise<number> {
-    const blockNumberHex: string = await this.send("eth_blockNumber");
+    const blockNumberHex: string = await this.senders.send("eth_blockNumber");
     return fromHex(blockNumberHex);
   }
 
@@ -399,11 +409,15 @@ export class AlchemyWebSocketProvider extends EventEmitter
   }
 
   private emitGenericEvent(virtualId: string, result: any): void {
-    const event: SubscriptionEvent["params"] = {
-      subscription: virtualId,
-      result,
+    const event: SubscriptionEvent = {
+      jsonrpc: "2.0",
+      method: "eth_subscription",
+      params: {
+        subscription: virtualId,
+        result,
+      },
     };
-    this.emit(virtualId, event);
+    this.emit("data", event);
   }
 }
 
@@ -434,7 +448,7 @@ function addToPastEventsBuffer<T>(
   // Find first index of an event recent enough to retain, then drop everything
   // at a lower index.
   const firstGoodIndex = pastEvents.findIndex(
-    e => getBlockNumber(e) > currentBlockNumber - RETAINED_EVENT_BLOCK_COUNT,
+    (e) => getBlockNumber(e) > currentBlockNumber - RETAINED_EVENT_BLOCK_COUNT,
   );
   if (firstGoodIndex === -1) {
     pastEvents.length = 0;
@@ -442,6 +456,18 @@ function addToPastEventsBuffer<T>(
     pastEvents.splice(0, firstGoodIndex);
   }
   pastEvents.push(event);
+}
+
+function isSubscribeRequest(
+  request: SingleOrBatchRequest,
+): request is JsonRpcRequest {
+  return !Array.isArray(request) && request.method === "eth_subscribe";
+}
+
+function isUnsubscribeRequest(
+  request: SingleOrBatchRequest,
+): request is JsonRpcRequest {
+  return !Array.isArray(request) && request.method === "eth_unsubscribe";
 }
 
 function getNewHeadsBlockNumber(event: NewHeadsEvent): number {

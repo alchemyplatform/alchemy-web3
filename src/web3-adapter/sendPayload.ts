@@ -8,6 +8,7 @@ import {
   SingleOrBatchRequest,
   SingleOrBatchResponse,
 } from "../types";
+import { PayloadFactory } from "../util/jsonRpc";
 import { delay, promisify } from "../util/promises";
 import { AlchemySendFunction } from "./alchemySend";
 
@@ -33,8 +34,12 @@ export interface SendPayloadFunction {
 export function makePayloadSender(
   alchemySend: AlchemySendFunction,
   config: FullConfig,
+  makePayload: PayloadFactory,
 ): PayloadSender {
-  let currentWriteProvider = getEip1193Provider(config.writeProvider);
+  let currentWriteProvider = getEip1193Provider(
+    config.writeProvider,
+    makePayload,
+  );
 
   const sendPayload = (
     payload: SingleOrBatchRequest,
@@ -66,7 +71,7 @@ export function makePayloadSender(
   };
 
   function setWriteProvider(writeProvider: Provider | null | undefined) {
-    currentWriteProvider = getEip1193Provider(writeProvider);
+    currentWriteProvider = getEip1193Provider(writeProvider, makePayload);
   }
 
   return { sendPayload: sendPayload as SendPayloadFunction, setWriteProvider };
@@ -74,23 +79,20 @@ export function makePayloadSender(
 
 function getEip1193Provider(
   provider: Provider | null | undefined,
+  makePayload: PayloadFactory,
 ): Eip1193Provider | undefined {
   if (!provider) {
     return undefined;
   }
   const anyProvider: any = provider;
-  let nextId = 0;
   const sendMethod = (anyProvider.sendAsync
     ? anyProvider.sendAsync
     : anyProvider.send
   ).bind(anyProvider);
   return {
     send: (method, params) =>
-      promisify(callback =>
-        sendMethod(
-          { jsonrpc: "2.0", id: `legacy:${nextId++}`, method, params },
-          callback,
-        ),
+      promisify((callback) =>
+        sendMethod(makePayload(method, params), callback),
       ),
   };
 }
@@ -115,7 +117,7 @@ function getDisallowedMethod(
 ): string | undefined {
   const payloads = Array.isArray(payload) ? payload : [payload];
   const disallowedRequest =
-    payloads.find(p => ALCHEMY_DISALLOWED_METHODS.indexOf(p.method) >= 0) ||
+    payloads.find((p) => ALCHEMY_DISALLOWED_METHODS.indexOf(p.method) >= 0) ||
     undefined;
   return disallowedRequest && disallowedRequest.method;
 }

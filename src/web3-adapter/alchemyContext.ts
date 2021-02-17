@@ -1,6 +1,11 @@
 import SturdyWebSocket from "sturdy-websocket";
 import { w3cwebsocket } from "websocket";
 import { FullConfig, Provider } from "../types";
+import {
+  JsonRpcSenders,
+  makePayloadFactory,
+  makeSenders,
+} from "../util/jsonRpc";
 import { VERSION } from "../version";
 import { makeHttpSender } from "./alchemySendHttp";
 import { makeWebSocketSender } from "./alchemySendWebSocket";
@@ -12,6 +17,7 @@ const NODE_MAX_WS_FRAME_SIZE = 100 * 1024 * 1024; // 100 MB
 
 export interface AlchemyContext {
   provider: any;
+  senders: JsonRpcSenders;
   setWriteProvider(provider: Provider | null | undefined): void;
 }
 
@@ -19,14 +25,17 @@ export function makeAlchemyContext(
   url: string,
   config: FullConfig,
 ): AlchemyContext {
+  const makePayload = makePayloadFactory();
   if (/^https?:\/\//.test(url)) {
     const alchemySend = makeHttpSender(url);
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,
       config,
+      makePayload,
     );
+    const senders = makeSenders(sendPayload, makePayload);
     const provider = makeAlchemyHttpProvider(sendPayload);
-    return { provider, setWriteProvider };
+    return { provider, senders, setWriteProvider };
   } else if (/^wss?:\/\//.test(url)) {
     const protocol = isAlchemyUrl(url) ? `alchemy-web3-${VERSION}` : undefined;
     const ws = new SturdyWebSocket(url, protocol, {
@@ -36,9 +45,11 @@ export function makeAlchemyContext(
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,
       config,
+      makePayload,
     );
-    const provider = new AlchemyWebSocketProvider(ws, sendPayload);
-    return { provider, setWriteProvider };
+    const senders = makeSenders(sendPayload, makePayload);
+    const provider = new AlchemyWebSocketProvider(ws, sendPayload, senders);
+    return { provider, senders, setWriteProvider };
   } else {
     throw new Error(
       `Alchemy URL protocol must be one of http, https, ws, or wss. Recieved: ${url}`,

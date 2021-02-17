@@ -12,7 +12,7 @@ export function promisify<T>(
       if (error != null) {
         reject(error);
       } else {
-        resolve(result);
+        resolve(result!);
       }
     }),
   );
@@ -26,11 +26,14 @@ export function callWhenDone<T>(
   promise: Promise<T>,
   callback: Web3Callback<T>,
 ): void {
-  promise.then(result => callback(null, result), error => callback(error));
+  promise.then(
+    (result) => callback(null, result),
+    (error) => callback(error),
+  );
 }
 
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

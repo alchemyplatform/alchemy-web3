@@ -1,11 +1,12 @@
 import Web3 from "web3";
-import { Log, Transaction } from "web3-core";
-import { BlockHeader, Eth, LogsOptions, Subscription, Syncing } from "web3-eth";
+import { Log, LogsOptions, Transaction } from "web3-core";
+import { Subscription } from "web3-core-subscriptions";
+import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { hexToNumberString, toHex } from "web3-utils";
 import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
+import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
-import FullTransactionsSubscription from "./web3-adapter/fullTransactionsSubscription";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
@@ -123,22 +124,18 @@ export interface AlchemyEth extends Eth {
   ): Subscription<Log>;
   subscribe(
     type: "syncing",
-    options?: null,
     callback?: (error: Error, result: Syncing) => void,
   ): Subscription<Syncing>;
   subscribe(
     type: "newBlockHeaders",
-    options?: null,
     callback?: (error: Error, blockHeader: BlockHeader) => void,
   ): Subscription<BlockHeader>;
   subscribe(
     type: "pendingTransactions",
-    options?: null,
     callback?: (error: Error, transactionHash: string) => void,
   ): Subscription<string>;
   subscribe(
     type: "alchemy_fullPendingTransactions",
-    options?: null,
     callback?: (error: Error, transaction: Transaction) => void,
   ): Subscription<Transaction>;
   subscribe(
@@ -167,7 +164,7 @@ export function createAlchemyWeb3(
   config?: AlchemyWeb3Config,
 ): AlchemyWeb3 {
   const fullConfig = fillInConfigDefaults(config);
-  const { provider, setWriteProvider } = makeAlchemyContext(
+  const { provider, senders, setWriteProvider } = makeAlchemyContext(
     alchemyUrl,
     fullConfig,
   );
@@ -178,20 +175,17 @@ export function createAlchemyWeb3(
     );
   };
   alchemyWeb3.setWriteProvider = setWriteProvider;
-  const send = alchemyWeb3.currentProvider.send.bind(
-    alchemyWeb3.currentProvider,
-  );
   alchemyWeb3.alchemy = {
     getTokenAllowance: (params: TokenAllowanceParams, callback) =>
       callAlchemyMethod({
-        send,
+        senders,
         callback,
         method: "alchemy_getTokenAllowance",
         params: [params],
       }),
     getTokenBalances: (address, contractAddresses, callback) =>
       callAlchemyMethod({
-        send,
+        senders,
         callback,
         method: "alchemy_getTokenBalances",
         params: [address, contractAddresses],
@@ -199,14 +193,14 @@ export function createAlchemyWeb3(
       }),
     getTokenMetadata: (address, callback) =>
       callAlchemyMethod({
-        send,
+        senders,
         callback,
         params: [address],
         method: "alchemy_getTokenMetadata",
       }),
     getAssetTransfers: (params: AssetTransfersParams, callback) =>
       callAlchemyMethod({
-        send,
+        senders,
         callback,
         params: [
           {
@@ -236,22 +230,22 @@ function getWindowProvider(): Provider | null {
 }
 
 interface CallAlchemyMethodParams<T> {
+  senders: JsonRpcSenders;
   method: string;
   params: any[];
   callback?: Web3Callback<T>;
-  send(method: string, params?: any[]): any;
   processResponse?(response: any): T;
 }
 
 function callAlchemyMethod<T>({
+  senders,
   method,
   params,
-  send,
   callback = noop,
   processResponse = identity,
 }: CallAlchemyMethodParams<T>): Promise<T> {
   const promise = (async () => {
-    const result = await send(method, params);
+    const result = await senders.send(method, params);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);
@@ -262,7 +256,7 @@ function processTokenBalanceResponse(
   rawResponse: TokenBalancesResponse,
 ): TokenBalancesResponse {
   // Convert token balance fields from hex-string to decimal-string.
-  const fixedTokenBalances = rawResponse.tokenBalances.map(balance =>
+  const fixedTokenBalances = rawResponse.tokenBalances.map((balance) =>
     balance.tokenBalance != null
       ? { ...balance, tokenBalance: hexToNumberString(balance.tokenBalance) }
       : balance,
@@ -275,22 +269,41 @@ function processTokenBalanceResponse(
  * specific subscriptions.
  */
 function patchSubscriptions(web3: Web3): void {
-  const { subscriptionsFactory } = web3.eth as any;
-  const oldGetSubscription = subscriptionsFactory.getSubscription.bind(
-    subscriptionsFactory,
-  );
-  subscriptionsFactory.getSubscription = (...args: any[]) => {
-    const [moduleInstance, type] = args;
-    if (type === "alchemy_fullPendingTransactions") {
-      return new FullTransactionsSubscription(
-        subscriptionsFactory.utils,
-        subscriptionsFactory.formatters,
-        moduleInstance,
+  const { eth } = web3;
+  const oldSubscribe = eth.subscribe.bind(eth);
+  eth.subscribe = ((type: string, ...rest: any[]) => {
+    if (
+      type === "alchemy_fullPendingTransactions" ||
+      type === "alchemy_newFullPendingTransactions"
+    ) {
+      return suppressNoSubscriptionExistsWarning(() =>
+        oldSubscribe("alchemy_newFullPendingTransactions" as any, ...rest),
       );
-    } else {
-      return oldGetSubscription(...args);
     }
+    return oldSubscribe(type as any, ...rest);
+  }) as any;
+}
+
+/**
+ * VERY hacky wrapper to suppress a spurious warning when subscribing to an
+ * Alchemy subscription that isn't built into Web3.
+ */
+function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
+  const oldConsoleWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (
+      typeof args[0] === "string" &&
+      args[0].includes(" doesn't exist. Subscribing anyway.")
+    ) {
+      return;
+    }
+    return oldConsoleWarn.apply(console, args);
   };
+  try {
+    return f();
+  } finally {
+    console.warn = oldConsoleWarn;
+  }
 }
 
 function noop(): void {

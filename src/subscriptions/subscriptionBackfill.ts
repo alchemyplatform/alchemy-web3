@@ -176,8 +176,8 @@ export function makeBackfiller(senders: JsonRpcSenders) {
     );
     throwIfCancelled(isCancelled);
     const removedLogs = previousLogs
-      .filter(log => fromHex(log.blockNumber) > commonAncestorNumber)
-      .map(log => ({ ...log, removed: true }));
+      .filter((log) => fromHex(log.blockNumber) > commonAncestorNumber)
+      .map((log) => ({ ...log, removed: true }));
     const addedLogs = await getLogsInRange(
       filter,
       commonAncestorNumber + 1,
@@ -225,7 +225,7 @@ export function makeBackfiller(senders: JsonRpcSenders) {
 }
 
 function toNewHeadsEvent(head: BlockHead): NewHeadsEvent {
-  const result = { ...head };
+  const result: NewHeadsEvent & Partial<BlockHead> = { ...head };
   delete result.totalDifficulty;
   delete result.transactions;
   delete result.uncles;
@@ -233,17 +233,17 @@ function toNewHeadsEvent(head: BlockHead): NewHeadsEvent {
 }
 
 export function dedupeNewHeads(events: NewHeadsEvent[]): NewHeadsEvent[] {
-  return dedupe(events, event => event.hash);
+  return dedupe(events, (event) => event.hash);
 }
 
 export function dedupeLogs(events: LogsEvent[]): LogsEvent[] {
-  return dedupe(events, event => `${event.blockHash}/${event.logIndex}`);
+  return dedupe(events, (event) => `${event.blockHash}/${event.logIndex}`);
 }
 
 function dedupe<T>(items: T[], getKey: (item: T) => any): T[] {
   const keysSeen: Set<any> = new Set();
   const result: T[] = [];
-  items.forEach(item => {
+  items.forEach((item) => {
     const key = getKey(item);
     if (!keysSeen.has(key)) {
       keysSeen.add(key);

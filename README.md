@@ -29,6 +29,8 @@ it in your app right away.
 
 ## Installation
 
+### With a package manager
+
 With Yarn:
 
 ```
@@ -41,9 +43,9 @@ Or with NPM:
 npm install @alch/alchemy-web3
 ```
 
-### In the browser with a CDN:
+### With a CDN in the browser
 
-Add the following script tag to your page:
+Alternatively, add the following script tag to your page:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.min.js"></script>

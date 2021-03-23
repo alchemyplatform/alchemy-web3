@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
+    "importHelpers": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "noEmit": true,

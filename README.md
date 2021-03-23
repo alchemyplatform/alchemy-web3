@@ -41,12 +41,22 @@ Or with NPM:
 npm install @alch/alchemy-web3
 ```
 
-You will also need an Alchemy account to access the Alchemy API. If you don't
-have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
+### In the browser with a CDN:
+
+Add the following script tag to your page:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.min.js"></script>
+```
+
+When using this option, you can create Alchemy-Web3 instances using the global variable `AlchemyWeb3.createAlchemyWeb3`.
 
 ## Usage
 
 ### Basic Usage
+
+You will need an Alchemy account to access the Alchemy API. If you don't
+have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
 it your Alchemy app's URL and optionally a configuration object.
@@ -75,7 +85,7 @@ Alchemy:
 
 ```ts
 // Many web3.js methods return promises.
-web3.eth.getBlock("latest").then(block => {
+web3.eth.getBlock("latest").then((block) => {
   /* … */
 });
 
@@ -86,7 +96,7 @@ web3.eth
     data: "0xa9059c…",
     gasPrice: "0xa994f8…",
   })
-  .then(gasAmount => {
+  .then((gasAmount) => {
     /* … */
   });
 ```
@@ -101,7 +111,7 @@ the user has them installed. For example, the following will use a provider from
 the user's browser:
 
 ```ts
-web3.eth.getAccounts().then(accounts => {
+web3.eth.getAccounts().then((accounts) => {
   web3.eth.sendTransaction({
     from: accounts[0],
     to: "0x6A823E…",
@@ -126,10 +136,10 @@ An example of doing so is as follows:
 if (window.ethereum) {
   ethereum
     .enable()
-    .then(accounts => {
+    .then((accounts) => {
       // Metamask is ready to go!
     })
-    .catch(reason => {
+    .catch((reason) => {
       // Handle error. Likely the user rejected the login.
     });
 } else {

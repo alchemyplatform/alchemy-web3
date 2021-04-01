@@ -31,7 +31,6 @@ export function makeAlchemyContext(
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,
       config,
-      makePayload,
     );
     const senders = makeSenders(sendPayload, makePayload);
     const provider = makeAlchemyHttpProvider(sendPayload);
@@ -45,7 +44,6 @@ export function makeAlchemyContext(
     const { sendPayload, setWriteProvider } = makePayloadSender(
       alchemySend,
       config,
-      makePayload,
     );
     const senders = makeSenders(sendPayload, makePayload);
     const provider = new AlchemyWebSocketProvider(ws, sendPayload, senders);

@@ -1,6 +1,5 @@
 import assertNever from "assert-never";
 import {
-  Eip1193Provider,
   FullConfig,
   JsonRpcRequest,
   JsonRpcResponse,
@@ -8,7 +7,6 @@ import {
   SingleOrBatchRequest,
   SingleOrBatchResponse,
 } from "../types";
-import { PayloadFactory } from "../util/jsonRpc";
 import { delay, promisify } from "../util/promises";
 import { AlchemySendFunction } from "./alchemySend";
 
@@ -34,12 +32,8 @@ export interface SendPayloadFunction {
 export function makePayloadSender(
   alchemySend: AlchemySendFunction,
   config: FullConfig,
-  makePayload: PayloadFactory,
 ): PayloadSender {
-  let currentWriteProvider = getEip1193Provider(
-    config.writeProvider,
-    makePayload,
-  );
+  let currentWriteProvider = config.writeProvider;
 
   const sendPayload = (
     payload: SingleOrBatchRequest,
@@ -71,45 +65,22 @@ export function makePayloadSender(
   };
 
   function setWriteProvider(writeProvider: Provider | null | undefined) {
-    currentWriteProvider = getEip1193Provider(writeProvider, makePayload);
+    currentWriteProvider = writeProvider ?? null;
   }
 
   return { sendPayload: sendPayload as SendPayloadFunction, setWriteProvider };
 }
 
-function getEip1193Provider(
-  provider: Provider | null | undefined,
-  makePayload: PayloadFactory,
-): Eip1193Provider | undefined {
-  if (!provider) {
-    return undefined;
-  }
+function sendWithProvider(
+  provider: Provider,
+  payload: SingleOrBatchRequest,
+): Promise<SingleOrBatchResponse> {
   const anyProvider: any = provider;
   const sendMethod = (anyProvider.sendAsync
     ? anyProvider.sendAsync
     : anyProvider.send
   ).bind(anyProvider);
-  return {
-    send: (method, params) =>
-      promisify((callback) =>
-        sendMethod(makePayload(method, params), callback),
-      ),
-  };
-}
-
-function sendWithProvider(
-  provider: Eip1193Provider,
-  payload: SingleOrBatchRequest,
-): Promise<SingleOrBatchResponse> {
-  if (!Array.isArray(payload)) {
-    const { method, params } = payload;
-    return provider.send(method, params);
-  } else {
-    // These providers don't support batches, sadly.
-    return Promise.all(
-      payload.map(({ method, params }) => provider.send(method, params)),
-    );
-  }
+  return promisify((callback) => sendMethod(payload, callback));
 }
 
 function getDisallowedMethod(

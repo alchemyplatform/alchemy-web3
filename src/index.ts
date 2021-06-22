@@ -4,6 +4,7 @@ import { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { hexToNumberString, toHex } from "web3-utils";
 import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
+import { formatBlock } from "./util/hex";
 import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
@@ -205,6 +206,12 @@ export function createAlchemyWeb3(
         params: [
           {
             ...params,
+            fromBlock:
+              params.fromBlock != null
+                ? formatBlock(params.fromBlock)
+                : undefined,
+            toBlock:
+              params.toBlock != null ? formatBlock(params.toBlock) : undefined,
             maxCount:
               params.maxCount != null ? toHex(params.maxCount) : undefined,
           },

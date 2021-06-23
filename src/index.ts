@@ -1,6 +1,6 @@
 import Web3 from "web3";
 import { Log, LogsOptions, Transaction } from "web3-core";
-import { Subscription } from "web3-core-subscriptions";
+import web3CoreSubscriptions, { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { hexToNumberString, toHex } from "web3-utils";
 import {
@@ -341,13 +341,10 @@ function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
  * Another VERY hacky monkeypatch to make sure that we can take extra parameters to certain alchemy subscriptions
  * I hate doing this, but the other option is to fork web3-core and I think for now this is better
  */
-// Was unable to figure out how to make this work with imports.
-const web3CoreSubscriptions = require("web3-core-subscriptions"); // tslint:disable-line:no-var-requires
+const { subscription } = web3CoreSubscriptions as any;
 const oldSubscriptionPrototypeValidateArgs =
-  web3CoreSubscriptions.subscription.prototype._validateArgs;
-web3CoreSubscriptions.subscription.prototype._validateArgs = function (
-  args: any,
-) {
+  subscription.prototype._validateArgs;
+subscription.prototype._validateArgs = function (args: any) {
   if (
     [
       "alchemy_filteredNewFullPendingTransactions",

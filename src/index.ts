@@ -301,7 +301,8 @@ function patchSubscriptions(web3: Web3): void {
     }
     if (
       type === "alchemy_filteredNewFullPendingTransactions" ||
-      type === "alchemy_filteredPendingTransactions"
+      type === "alchemy_filteredPendingTransactions" ||
+      type === "alchemy_filteredFullPendingTransactions"
     ) {
       return suppressNoSubscriptionExistsWarning(() =>
         oldSubscribe(
@@ -335,6 +336,31 @@ function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
     console.warn = oldConsoleWarn;
   }
 }
+
+/**
+ * Another VERY hacky monkeypatch to make sure that we can take extra parameters to certain alchemy subscriptions
+ * I hate doing this, but the other option is to fork web3-core and I think for now this is better
+ */
+// Was unable to figure out how to make this work with imports.
+const web3CoreSubscriptions = require("web3-core-subscriptions"); // tslint:disable-line:no-var-requires
+const oldSubscriptionPrototypeValidateArgs =
+  web3CoreSubscriptions.subscription.prototype._validateArgs;
+web3CoreSubscriptions.subscription.prototype._validateArgs = function (
+  args: any,
+) {
+  if (
+    [
+      "alchemy_filteredNewFullPendingTransactions",
+      "alchemy_filteredPendingTransactions",
+      "alchemy_filteredFullPendingTransactions",
+    ].includes(this.subscriptionMethod)
+  ) {
+    // This particular subscription type is allowed to have additional parameters
+  } else {
+    const validator = oldSubscriptionPrototypeValidateArgs.bind(this);
+    validator(args);
+  }
+};
 
 function noop(): void {
   // Nothing.

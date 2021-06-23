@@ -329,13 +329,26 @@ Subscribes to pending transactions, similar to the standard Web3 call
 `web3.eth.subscribe("pendingTransactions")`, but differs in that it emits
 full transaction information rather than just transaction hashes.
 
-Note that the argument passed to this function is
-`"alchemy_fullPendingTransactions"`, which is different from the string used in
-raw `eth_subscribe` JSON-RPC calls, where it is
-`"alchemy_newFullPendingTransactions"` instead. This is confusing, but it is
-also consistent with the existing Web3 subscription APIs (for example:
-`web3.eth.subscribe("pendingTransactions")` vs `"newPendingTransactions"` in raw
-JSON-RPC).
+Note that the argument passed to this function is permitted to be either of
+`"alchemy_fullPendingTransactions"` or `"alchemy_newFullPendingTransactions"`,
+which have the same effect. The latter is the string used in raw `eth_subscribe`
+JSON-RPC calls, while the former is consistent with the existing Web3.js
+subscription APIs (for example, `web3.eth.subscribe("pendingTransactions")`
+corresponds to the raw JSON-RPC call of type `newPendingTransactions`). While
+this is unfortunately confusing, supporting both strings attempts to balance
+consistency and convenience.
+
+### `web3.eth.subscribe("alchemy_filteredFullPendingTransactions", options)`
+
+Like an `alchemy_fullPendingTransactions` subscription, but also allows passing
+an `options` argument containing an `address` field to filter the returned
+transactions to those from or to the specified address. The options argument is
+as described in [the documentation
+here](https://docs.alchemy.com/alchemy/guides/using-websockets#2-alchemy_filterednewfullpendingtransactions).
+
+Similar to the previous point, note that the argument passed to this function
+may be either of `"alchemy_filteredFullPendingTransactions"` or
+`"alchemy_filteredNewPendingTransactions"`.
 
 <br/>
 

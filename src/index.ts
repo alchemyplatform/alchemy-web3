@@ -339,8 +339,7 @@ function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
 
 /**
  * Another VERY hacky monkeypatch to make sure that we can take extra parameters to certain alchemy subscriptions
- * I hate doing this, but the other option is to fork web3-core and I think for now this is better. Any web3-core
- * update to this method will have to be manually duplicated by us here.
+ * I hate doing this, but the other option is to fork web3-core and I think for now this is better
  */
 // Was unable to figure out how to make this work with imports.
 const web3CoreSubscriptions = require("web3-core-subscriptions"); // tslint:disable-line:no-var-requires

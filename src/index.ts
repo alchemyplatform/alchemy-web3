@@ -342,36 +342,24 @@ function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
  * I hate doing this, but the other option is to fork web3-core and I think for now this is better. Any web3-core
  * update to this method will have to be manually duplicated by us here.
  */
+// Was unable to figure out how to make this work with imports.
 const web3CoreSubscriptions = require("web3-core-subscriptions"); // tslint:disable-line:no-var-requires
-const web3CoreErrors = require("web3-core-helpers").errors; // tslint:disable-line:no-var-requires
+const oldSubscriptionPrototypeValidateArgs =
+  web3CoreSubscriptions.subscription.prototype._validateArgs;
 web3CoreSubscriptions.subscription.prototype._validateArgs = function (
   args: any,
 ) {
-  let subscription: any = this.options.subscription;
-  if (!subscription) {
-    subscription = {};
-  }
-  if (!subscription.params) {
-    subscription.params = 0;
-  }
-  if (args.length !== subscription.params) {
-    if (
-      [
-        "alchemy_filteredNewFullPendingTransactions",
-        "alchemy_filteredPendingTransactions",
-        "alchemy_filteredFullPendingTransactions",
-      ].includes(this.subscriptionMethod)
-    ) {
-      // This particular subscription type is allowed to have additional parameters
-    } else {
-      const subscriptionName =
-        subscription.subscriptionName || this.subscriptionMethod;
-      throw web3CoreErrors.InvalidNumberOfParams(
-        args.length,
-        subscription.params,
-        subscriptionName,
-      );
-    }
+  if (
+    [
+      "alchemy_filteredNewFullPendingTransactions",
+      "alchemy_filteredPendingTransactions",
+      "alchemy_filteredFullPendingTransactions",
+    ].includes(this.subscriptionMethod)
+  ) {
+    // This particular subscription type is allowed to have additional parameters
+  } else {
+    const validator = oldSubscriptionPrototypeValidateArgs.bind(this);
+    validator(args);
   }
 };
 

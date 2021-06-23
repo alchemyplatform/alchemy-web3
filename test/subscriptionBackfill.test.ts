@@ -105,7 +105,7 @@ describe("getNewHeadsBackfill", () => {
 
 function expectGetBlockCalled(blockNumber: number): void {
   expect(
-    senders.send.mock.calls.some(call => fromHex(call[0]) === blockNumber),
+    senders.send.mock.calls.some((call) => fromHex(call[0]) === blockNumber),
   );
 }
 

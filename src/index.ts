@@ -1,5 +1,5 @@
 import Web3 from "web3";
-import { Log, LogsOptions, Transaction } from "web3-core";
+import { Log, LogsOptions, Transaction, TransactionsOptions } from "web3-core";
 import { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { hexToNumberString, toHex } from "web3-utils";
@@ -139,13 +139,19 @@ export interface AlchemyEth extends Eth {
     callback?: (error: Error, transaction: Transaction) => void,
   ): Subscription<Transaction>;
   subscribe(
+    type: "alchemy_filteredFullPendingTransactions",
+    options?: TransactionsOptions,
+    callback?: (error: Error, transaction: Transaction) => void,
+  ): Subscription<Transaction>;
+  subscribe(
     type:
       | "pendingTransactions"
       | "logs"
       | "syncing"
       | "newBlockHeaders"
-      | "alchemy_fullPendingTransactions",
-    options?: null | LogsOptions,
+      | "alchemy_fullPendingTransactions"
+      | "alchemy_filteredFullPendingTransactions",
+    options?: null | LogsOptions | TransactionsOptions,
     callback?: (
       error: Error,
       item: Log | Syncing | BlockHeader | string | Transaction,
@@ -278,6 +284,17 @@ function patchSubscriptions(web3: Web3): void {
     ) {
       return suppressNoSubscriptionExistsWarning(() =>
         oldSubscribe("alchemy_newFullPendingTransactions" as any, ...rest),
+      );
+    }
+    if (
+      type === "alchemy_filteredNewFullPendingTransactions" ||
+      type === "alchemy_filteredPendingTransactions"
+    ) {
+      return suppressNoSubscriptionExistsWarning(() =>
+        oldSubscribe(
+          "alchemy_filteredNewFullPendingTransactions" as any,
+          ...rest,
+        ),
       );
     }
     return oldSubscribe(type as any, ...rest);

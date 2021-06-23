@@ -1,9 +1,15 @@
 import Web3 from "web3";
-import { Log, LogsOptions, Transaction, TransactionsOptions } from "web3-core";
+import { Log, LogsOptions, Transaction } from "web3-core";
 import { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { hexToNumberString, toHex } from "web3-utils";
-import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
+import {
+  AlchemyWeb3Config,
+  FullConfig,
+  Provider,
+  TransactionsOptions,
+  Web3Callback,
+} from "./types";
 import { formatBlock } from "./util/hex";
 import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";

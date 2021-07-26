@@ -36,4 +36,22 @@ describe("AlchemyWeb3", () => {
     };
     expect(subCall).not.toThrow();
   });
+
+  it("includes an aliased method name for alchemy_ subscription InvalidNumberOfParams errors", async () => {
+    const subCall = () => {
+      web3.eth.subscribe("alchemy_fullPendingTransactions", {
+        address: "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2",
+      });
+    };
+    expect(subCall).toThrow(
+      'Invalid number of parameters for "alchemy_newFullPendingTransactions". Got 1 expected 0!',
+    );
+  });
+
+  it.todo(
+    "includes a non-aliased method name for alchemy_ subscription InvalidNumberOfParams errors",
+  );
+  it.todo(
+    "returns an InvalidNumberOfParams error for alchemy_ subscriptions that require params",
+  );
 });

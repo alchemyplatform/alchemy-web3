@@ -354,6 +354,17 @@ subscription.prototype._validateArgs = function (args: any) {
   ) {
     // This particular subscription type is allowed to have additional parameters
   } else {
+    if (
+      [
+        "alchemy_fullPendingTransactions",
+        "alchemy_newFullPendingTransactions",
+      ].includes(this.subscriptionMethod)
+    ) {
+      if (this.options.subscription) {
+        this.options.subscription.subscriptionName = this.subscriptionMethod;
+      }
+    }
+
     const validator = oldSubscriptionPrototypeValidateArgs.bind(this);
     validator(args);
   }

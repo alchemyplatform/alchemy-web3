@@ -12,8 +12,6 @@ const MethodFn: any = Method;
 
 export function patchEnableCustomRPC(web3: any): void {
   web3.eth.customRPC = function (opts: PatchParams) {
-    /* tslint:disable-next-line */
-    const self = this;
     const newMethod = new MethodFn({
       name: opts.name,
       call: opts.call,
@@ -21,7 +19,7 @@ export function patchEnableCustomRPC(web3: any): void {
       inputFormatter: opts.inputFormatter || null,
       outputFormatter: opts.outputFormatter || null,
     });
-    newMethod.attachToObject(self);
-    newMethod.setRequestManager(self._requestManager, self.accounts);
+    newMethod.attachToObject(this);
+    newMethod.setRequestManager(this._requestManager, this.accounts);
   };
 }

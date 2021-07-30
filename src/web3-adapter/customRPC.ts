@@ -1,6 +1,4 @@
-// web3-core-method exports both a function and a type called `Method`. Typescript defaults to importing the type rather than the function, so when I try to call it typescript will yell at me. So we use require instead.
-/* tslint:disable-next-line */
-const Method = require("web3-core-method");
+import Method from "web3-core-method";
 
 interface PatchParams {
   name: string;
@@ -10,11 +8,13 @@ interface PatchParams {
   outputFormatter: any;
 }
 
+const MethodFn: any = Method;
+
 export function patchEnableCustomRPC(web3: any): void {
   web3.eth.customRPC = function (opts: PatchParams) {
     /* tslint:disable-next-line */
     const self = this;
-    const newMethod = new Method({
+    const newMethod = new MethodFn({
       name: opts.name,
       call: opts.call,
       params: opts.params || 0,

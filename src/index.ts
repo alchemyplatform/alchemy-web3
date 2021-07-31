@@ -14,6 +14,9 @@ import { formatBlock } from "./util/hex";
 import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
+import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
+import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
+import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
@@ -232,6 +235,9 @@ export function createAlchemyWeb3(
       }),
   };
   patchSubscriptions(alchemyWeb3);
+  patchEnableCustomRPC(alchemyWeb3);
+  patchEthFeeHistoryMethod(alchemyWeb3);
+  patchEthMaxPriorityFeePerGasMethod(alchemyWeb3);
   return alchemyWeb3;
 }
 

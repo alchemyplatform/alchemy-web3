@@ -16,6 +16,7 @@ import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
 import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
 import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
+import { patchEthGasStation } from "./web3-adapter/eth_gasStation";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
 
 const DEFAULT_MAX_RETRIES = 3;
@@ -238,6 +239,7 @@ export function createAlchemyWeb3(
   patchEnableCustomRPC(alchemyWeb3);
   patchEthFeeHistoryMethod(alchemyWeb3);
   patchEthMaxPriorityFeePerGasMethod(alchemyWeb3);
+  patchEthGasStation(alchemyWeb3);
   return alchemyWeb3;
 }
 

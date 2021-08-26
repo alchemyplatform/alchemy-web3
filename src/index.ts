@@ -2,7 +2,8 @@ import Web3 from "web3";
 import { Log, LogsOptions, Transaction } from "web3-core";
 import web3CoreSubscriptions, { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
-import { hexToNumberString, toHex } from "web3-utils";
+import { decodeParameter } from "web3-eth-abi";
+import { toHex } from "web3-utils";
 import {
   AlchemyWeb3Config,
   FullConfig,
@@ -283,7 +284,10 @@ function processTokenBalanceResponse(
   // Convert token balance fields from hex-string to decimal-string.
   const fixedTokenBalances = rawResponse.tokenBalances.map((balance) =>
     balance.tokenBalance != null
-      ? { ...balance, tokenBalance: hexToNumberString(balance.tokenBalance) }
+      ? {
+          ...balance,
+          tokenBalance: decodeParameter("uint256", balance.tokenBalance),
+        }
       : balance,
   );
   return { ...rawResponse, tokenBalances: fixedTokenBalances };

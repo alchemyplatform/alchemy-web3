@@ -70,14 +70,14 @@
     "fetch-ponyfill": "^6.0.2",
     "sturdy-websocket": "^0.2.1",
     "tslib": "^2.1.0",
-    "web3": "1.5.2",
-    "web3-core": "1.5.2",
-    "web3-core-helpers": "1.5.2",
-    "web3-core-method": "1.5.2",
-    "web3-core-subscriptions": "1.5.2",
-    "web3-eth": "1.5.2",
-    "web3-eth-abi": "1.5.2",
-    "web3-utils": "1.5.2",
+    "web3": "1.6.0",
+    "web3-core": "1.6.0",
+    "web3-core-helpers": "1.6.0",
+    "web3-core-method": "1.6.0",
+    "web3-core-subscriptions": "1.6.0",
+    "web3-eth": "1.6.0",
+    "web3-eth-abi": "1.6.0",
+    "web3-utils": "1.6.0",
     "websocket": "^1.0.28"
   }
 }

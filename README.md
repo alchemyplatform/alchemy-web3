@@ -244,7 +244,7 @@ An object with the following fields:
   NOTE: `contractAddresses` are ORed together
 - `excludeZeroValue`: Optional boolean to exclude transfers with zero value (default true)
 - `maxCount`: Optional number to restrict payload size (default and max of 1000)
-- `category`: Optional array of categories (default all categories ["external", "internal", "token"])
+- `category`: Optional array of categories (defaults to the following categories: ["external", "internal", "token"])
 - `pageKey`: Optional uuid pageKey to retrieve the next payload
 
 **Returns:**
@@ -253,16 +253,17 @@ An object with the following fields:
 
 - `pageKey`: Uuid for next page of results (undefined for the last page of results).
 - `transfers`: An array of objects with the following fields sorted in ascending order by block number
-  - `category`: "external", "internal" or "token" - label for the transfer
+  - `category`: "external", "internal", "token", "erc20", "erc721", "erc1155" - label for the transfer
   - `blockNum`: The block where the transfer occurred (hex string).
   - `from`: From address of transfer (hex string).
   - `to`: To address of transfer (hex string). `null` if contract creation.
   - `value`: Converted asset transfer value as a number (raw value divided by contract decimal). `null` if erc721 transfer or contract decimal not available.
-  - `erc721TokenId`: Raw erc721 token id (hex string). `null` if not an erc721 "token" transfer
+  - `erc721TokenId`: Raw erc721 token id (hex string). `null` if not an erc721 transfer
+  - `erc1155Metadata`: A list of objects containing the erc1155 `tokenId` (hex string) and `value` (hex string). `null` if not an erc1155 transfer
   - `asset`: "ETH" or the token's symbol. `null` if not defined in the contract and not available from other sources.
   - `hash`: Transaction hash (hex string).
   - `rawContract`: Object of raw values:
-    - `value`: Raw transfer value (hex string). `null` if erc721 transfer
+    - `value`: Raw transfer value (hex string). `null` if erc721 or erc1155 transfer
     - `address`: Contract address (hex string). `null` if "external" or "internal"
     - `decimal`: Contract decimal (hex string). `null` if not defined in the contract and not available from other sources.
 

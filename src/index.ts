@@ -99,6 +99,9 @@ export enum AssetTransfersCategory {
   EXTERNAL = "external",
   INTERNAL = "internal",
   TOKEN = "token",
+  ERC20 = "erc20",
+  ERC721 = "erc721",
+  ERC1155 = "erc1155",
 }
 
 export interface AssetTransfersResponse {
@@ -113,9 +116,15 @@ export interface AssetTransfersResult {
   to: string | null;
   value: number | null;
   erc721TokenId: string | null;
+  erc1155Metadata: ERC1155Metadata[] | null;
   asset: string | null;
   hash: string;
   rawContract: RawContract;
+}
+
+export interface ERC1155Metadata {
+  tokenId: string;
+  value: string;
 }
 
 export interface RawContract {

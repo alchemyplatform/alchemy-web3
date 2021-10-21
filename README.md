@@ -324,6 +324,32 @@ An object with the following fields:
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
 
+### `web3.alchemy.getNftMetadata({contractAddress, tokenId, tokenType})`
+
+**Parameters:**
+
+An object with the following fields:
+
+- `contractAddress`: The hex string of the contract addresses for "token" transfers
+- `tokenId` : Raw token id (hex string).
+- `tokenType`: The type of token being sent as part of the request (Example: "erc271").
+
+**Returns:**
+
+An object with the following fields:
+
+- `contract` : The address of the token contract.
+- `tokenId` : Raw token id (hex string).
+- `tokenType` : The type of token being sent as part of the request.
+- `rawMetadataUri` : Raw URI path of the metadata. (Example ipfs://QmX...swG/abc.json)
+- `alchemyMetadataUri` : The URI of the hosted resourse (Example https://ipfs://QmX...swG/abc.json)
+- `rawImageUri` : Raw URI path of the image. (Example ipfs://QmX....swG/abc.png)
+- `alchemyImageUri` : The URI path of the image. (Example https://ipfs://QmX....swG/abc.png)
+- `name` : Name of the metadata specified as part of the nft response.
+- `description` : Description of the metadata specificed as part of the nfa response.
+- `attributes` : Array of raw data the takes the shape of string -> object. (Example: [{"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]}])
+- `rawMetadata` : Raw object that takes the shape of string -> object. (Example: {"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]})
+
 ### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
 
 Subscribes to pending transactions, similar to the standard Web3 call
@@ -379,11 +405,14 @@ An object with the following fields:
 **Example**
 
 Method call
+
 ```
 web3.eth.getFeeHistory(4, "latest", [25, 50, 75]).then(console.log);
 
 ```
+
 Logged response
+
 ```
 {
   oldestBlock: 12930639,
@@ -413,10 +442,13 @@ A hex, which is the `maxPriorityFeePerGas` suggestion. You can plug this directl
 **Example**
 
 Method call
+
 ```
 web3.eth.getMaxPriorityFeePerGas().then(console.log);
 ```
+
 Logged response
+
 ```
 0x560de0700
 ```

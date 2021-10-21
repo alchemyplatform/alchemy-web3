@@ -47,6 +47,10 @@ export interface AlchemyMethods {
     params: AssetTransfersParams,
     callback?: Web3Callback<AssetTransfersResponse>,
   ): Promise<AssetTransfersResponse>;
+  getNftMetadata(
+    params: NftMetadataParams,
+    callback?: Web3Callback<NftMetadataResponse>,
+  ): Promise<NftMetadataResponse>;
 }
 
 export interface TokenAllowanceParams {
@@ -120,6 +124,26 @@ export interface AssetTransfersResult {
   asset: string | null;
   hash: string;
   rawContract: RawContract;
+}
+
+export interface NftMetadataParams {
+  contractAddress: string;
+  tokenId: string;
+  tokenType: string;
+}
+
+export interface NftMetadataResponse {
+  contract: string;
+  tokenType: string;
+  tokenId: string;
+  rawMetadataUri: string | null;
+  alchemyMetadataUri: string | null;
+  rawImageUri: string | null;
+  alchemyImageUri: string | null;
+  name: string | null;
+  description: string | null;
+  attributes: [Record<string, any>] | null;
+  rawMetadata: Record<string, any>;
 }
 
 export interface ERC1155Metadata {
@@ -243,6 +267,13 @@ export function createAlchemyWeb3(
         ],
         method: "alchemy_getAssetTransfers",
       }),
+    getNftMetadata: (params: NftMetadataParams, callback) =>
+      callAlchemyMethod({
+        senders,
+        callback,
+        params: [{ ...params }],
+        method: "alchemy_getNftMetadata",
+      }),
   };
   patchSubscriptions(alchemyWeb3);
   patchEnableCustomRPC(alchemyWeb3);
@@ -281,6 +312,7 @@ function callAlchemyMethod<T>({
 }: CallAlchemyMethodParams<T>): Promise<T> {
   const promise = (async () => {
     const result = await senders.send(method, params);
+    console.log(result);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);

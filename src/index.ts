@@ -312,7 +312,6 @@ function callAlchemyMethod<T>({
 }: CallAlchemyMethodParams<T>): Promise<T> {
   const promise = (async () => {
     const result = await senders.send(method, params);
-    console.log(result);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);

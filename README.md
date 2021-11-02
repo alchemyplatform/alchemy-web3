@@ -374,7 +374,7 @@ An object with the following fields:
 - `oldestBlock`: The oldest block in the range that the fee history is being returned for.
 - `baseFeePerGas`: An array of base fees for each block in the range that was looked up. These are the same values that would be returned on a block for the `eth_getBlockByNumber` method.
 - `gasUsedRatio`: An array of the ratio of gas used to gas limit for each block.
-- `reward`: Only returned if a percentiles paramater was provided. Each block will have an array corresponding to the percentiles provided. Each element of the nested array will have the tip provided to miners for the percentile given. So if you provide [50, 90] as the percentiles then each block will have a 50th percentile reward and a 90th percentile reward.
+- `reward`: Only returned if a percentiles parameter was provided. Each block will have an array corresponding to the percentiles provided. Each element of the nested array will have the tip provided to miners for the percentile given. So if you provide [50, 90] as the percentiles then each block will have a 50th percentile reward and a 90th percentile reward.
 
 **Example**
 

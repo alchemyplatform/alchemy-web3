@@ -330,7 +330,7 @@ An object with the following fields:
 
 An object with the following fields:
 
-- `contractAddress`: The hex string of the contract addresses for "token" transfers
+- `contract` : The address of the token contract.
 - `tokenId` : Raw token id (hex string).
 - `tokenType`: The type of token being sent as part of the request (Example: "erc271").
 
@@ -338,17 +338,17 @@ An object with the following fields:
 
 An object with the following fields:
 
-- `contract` : The address of the token contract.
+- `contractAddress` : The hex string of the contract addresses for "token" transfers.
 - `tokenId` : Raw token id (hex string).
 - `tokenType` : The type of token being sent as part of the request.
-- `rawMetadataUri` : Raw URI path of the metadata. (Example ipfs://QmX...swG/abc.json)
-- `alchemyMetadataUri` : The URI of the hosted resourse (Example https://ipfs://QmX...swG/abc.json)
+- `rawMetadataUri` : Raw URI path of the token metadata. (Example: ipfs://QmX...swG/abc.json)
+- `alchemyMetadataUri` : The URI of the token metadata on a default gateway. (Example: https://ipfs.io/ipfs/QmX...swG/abc.json)
 - `rawImageUri` : Raw URI path of the image. (Example ipfs://QmX....swG/abc.png)
-- `alchemyImageUri` : The URI path of the image. (Example https://ipfs://QmX....swG/abc.png)
-- `name` : Name of the metadata specified as part of the nft response.
-- `description` : Description of the metadata specificed as part of the nfa response.
-- `attributes` : Array of raw data the takes the shape of string -> object. (Example: [{"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]}])
-- `rawMetadata` : Raw object that takes the shape of string -> object. (Example: {"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]})
+- `alchemyImageUri` : The URI path of the image on a default gateway. (Example: https://ipfs.io/ipfs/QmX....swG/abc.png)
+- `name` : Name of the token as specified in the metadata.
+- `description` : Description of the token as specified in the metadata.
+- `attributes` : Attributes of the token as specified in the metadata. This is usually an array that takes the shape of string -> object. (Example: [{"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]}])
+- `rawMetadata` : Raw value of the token metadata.
 
 ### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
 

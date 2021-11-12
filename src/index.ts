@@ -129,12 +129,12 @@ export interface AssetTransfersResult {
 export interface NftMetadataParams {
   contractAddress: string;
   tokenId: string;
-  tokenType: string;
+  tokenType: "erc721" | "erc1155";
 }
 
 export interface NftMetadataResponse {
   contract: string;
-  tokenType: string;
+  tokenType: "erc721" | "erc1155";
   tokenId: string;
   rawMetadataUri: string | null;
   alchemyMetadataUri: string | null;

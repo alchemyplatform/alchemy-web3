@@ -86,6 +86,7 @@ export interface TokenMetadataResponse {
 export interface AssetTransfersParams {
   fromBlock?: string;
   toBlock?: string;
+  order?: AssetTransfersOrder;
   fromAddress?: string;
   toAddress?: string;
   contractAddresses?: string[];
@@ -102,6 +103,11 @@ export enum AssetTransfersCategory {
   ERC20 = "erc20",
   ERC721 = "erc721",
   ERC1155 = "erc1155",
+}
+
+export enum AssetTransfersOrder {
+  ASCENDING = "asc",
+  DESCENDING = "desc",
 }
 
 export interface AssetTransfersResponse {

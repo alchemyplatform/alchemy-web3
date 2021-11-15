@@ -237,6 +237,7 @@ An object with the following fields:
 
 - `fromBlock`: Optional inclusive from hex string block (default latest)
 - `toBlock`: Optional inclusive to hex string block (default latest)
+- `order`: Optional string that specifies the ordering of the results. Must be one of ["asc", "desc"] (default "asc")
 - `fromAddress`: Optional from hex string address (default wildcard)
 - `toAddress`: Optional to hex string address (default wildcard)
   NOTE: `fromAddress` is ANDed with `toAddress`
@@ -379,11 +380,14 @@ An object with the following fields:
 **Example**
 
 Method call
+
 ```
 web3.eth.getFeeHistory(4, "latest", [25, 50, 75]).then(console.log);
 
 ```
+
 Logged response
+
 ```
 {
   oldestBlock: 12930639,
@@ -413,10 +417,13 @@ A hex, which is the `maxPriorityFeePerGas` suggestion. You can plug this directl
 **Example**
 
 Method call
+
 ```
 web3.eth.getMaxPriorityFeePerGas().then(console.log);
 ```
+
 Logged response
+
 ```
 0x560de0700
 ```

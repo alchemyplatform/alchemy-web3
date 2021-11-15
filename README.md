@@ -332,7 +332,7 @@ An object with the following fields:
 
 - `contract` : The address of the token contract.
 - `tokenId` : Raw token id (hex string).
-- `tokenType`: The type of token being sent as part of the request (Example: "erc271").
+- `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
 
 **Returns:**
 
@@ -340,7 +340,7 @@ An object with the following fields:
 
 - `contractAddress` : The hex string of the contract addresses for "token" transfers.
 - `tokenId` : Raw token id (hex string).
-- `tokenType` : The type of token being sent as part of the request.
+- `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
 - `rawMetadataUri` : Raw URI path of the token metadata. (Example: ipfs://QmX...swG/abc.json)
 - `alchemyMetadataUri` : The URI of the token metadata on a default gateway. (Example: https://ipfs.io/ipfs/QmX...swG/abc.json)
 - `rawImageUri` : Raw URI path of the image. (Example ipfs://QmX....swG/abc.png)

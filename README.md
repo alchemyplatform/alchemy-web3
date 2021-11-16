@@ -45,10 +45,16 @@ npm install @alch/alchemy-web3
 
 ### With a CDN in the browser
 
-Alternatively, add the following script tag to your page:
+Alternatively, add one of the following script tags to your page:
 
 ```html
+<!-- Minified -->
 <script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.min.js"></script>
+```
+
+```html
+<!-- Unminified -->
+<script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.js"></script>
 ```
 
 When using this option, you can create Alchemy-Web3 instances using the global variable `AlchemyWeb3.createAlchemyWeb3`.

@@ -47,6 +47,10 @@ export interface AlchemyMethods {
     params: AssetTransfersParams,
     callback?: Web3Callback<AssetTransfersResponse>,
   ): Promise<AssetTransfersResponse>;
+  getNftMetadata(
+    params: NftMetadataParams,
+    callback?: Web3Callback<NftMetadataResponse>,
+  ): Promise<NftMetadataResponse>;
 }
 
 export interface TokenAllowanceParams {
@@ -120,6 +124,26 @@ export interface AssetTransfersResult {
   asset: string | null;
   hash: string;
   rawContract: RawContract;
+}
+
+export interface NftMetadataParams {
+  contractAddress: string;
+  tokenId: string;
+  tokenType: "erc721" | "erc1155";
+}
+
+export interface NftMetadataResponse {
+  contract: string;
+  tokenType: "erc721" | "erc1155";
+  tokenId: string;
+  rawMetadataUri: string | null;
+  alchemyMetadataUri: string | null;
+  rawImageUri: string | null;
+  alchemyImageUri: string | null;
+  name: string | null;
+  description: string | null;
+  attributes: [Record<string, any>] | null;
+  rawMetadata: Record<string, any>;
 }
 
 export interface ERC1155Metadata {
@@ -242,6 +266,13 @@ export function createAlchemyWeb3(
           },
         ],
         method: "alchemy_getAssetTransfers",
+      }),
+    getNftMetadata: (params: NftMetadataParams, callback) =>
+      callAlchemyMethod({
+        senders,
+        callback,
+        params: [{ ...params }],
+        method: "alchemy_getNftMetadata",
       }),
   };
   patchSubscriptions(alchemyWeb3);

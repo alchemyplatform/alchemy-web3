@@ -243,6 +243,7 @@ An object with the following fields:
 
 - `fromBlock`: Optional inclusive from hex string block (default latest)
 - `toBlock`: Optional inclusive to hex string block (default latest)
+- `order`: Optional string that specifies the ordering of the results by block number. Must be one of ["asc", "desc"] (default "asc")
 - `fromAddress`: Optional from hex string address (default wildcard)
 - `toAddress`: Optional to hex string address (default wildcard)
   NOTE: `fromAddress` is ANDed with `toAddress`

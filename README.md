@@ -64,7 +64,7 @@ When using this option, you can create Alchemy-Web3 instances using the global v
 ### Basic Usage
 
 You will need an Alchemy account to access the Alchemy API. If you don't
-have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
+have one yet, [sign up here](https://alchemy.com/?a=850af13f8e).
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
 it your Alchemy app's URL and optionally a configuration object.

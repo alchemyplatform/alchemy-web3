@@ -1,6 +1,6 @@
 import fetchPonyfill from "fetch-ponyfill";
 import { VERSION } from "../version";
-import { AlchemySendFunction } from "./alchemySend";
+import { AlchemySendJsonRpcFunction } from "./alchemySend";
 
 const { fetch, Headers } = fetchPonyfill();
 
@@ -11,7 +11,7 @@ const ALCHEMY_HEADERS = new Headers({
 });
 const RATE_LIMIT_STATUS = 429;
 
-export function makeHttpSender(url: string): AlchemySendFunction {
+export function makeJsonRpcHttpSender(url: string): AlchemySendJsonRpcFunction {
   return async (request) => {
     const response = await fetch(url, {
       method: "POST",

@@ -5,6 +5,18 @@ import { BlockHeader, Eth, Syncing } from "web3-eth";
 import { decodeParameter } from "web3-eth-abi";
 import { toHex } from "web3-utils";
 import {
+  AssetTransfersParams,
+  AssetTransfersResponse,
+  GetNftMetadataParams,
+  GetNftMetadataResponse,
+  GetNftsParams,
+  GetNftsResponse,
+  TokenAllowanceParams,
+  TokenAllowanceResponse,
+  TokenBalancesResponse,
+  TokenMetadataResponse,
+} from "./alchemy-apis/types";
+import {
   AlchemyWeb3Config,
   FullConfig,
   Provider,
@@ -18,6 +30,7 @@ import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
 import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
 import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
+import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
@@ -48,119 +61,13 @@ export interface AlchemyMethods {
     callback?: Web3Callback<AssetTransfersResponse>,
   ): Promise<AssetTransfersResponse>;
   getNftMetadata(
-    params: NftMetadataParams,
-    callback?: Web3Callback<NftMetadataResponse>,
-  ): Promise<NftMetadataResponse>;
-}
-
-export interface TokenAllowanceParams {
-  contract: string;
-  owner: string;
-  spender: string;
-}
-
-export type TokenAllowanceResponse = string;
-
-export interface TokenBalancesResponse {
-  address: string;
-  tokenBalances: TokenBalance[];
-}
-
-export type TokenBalance = TokenBalanceSuccess | TokenBalanceFailure;
-
-export interface TokenBalanceSuccess {
-  address: string;
-  tokenBalance: string;
-  error: null;
-}
-
-export interface TokenBalanceFailure {
-  address: string;
-  tokenBalance: null;
-  error: string;
-}
-
-export interface TokenMetadataResponse {
-  decimals: number | null;
-  logo: string | null;
-  name: string | null;
-  symbol: string | null;
-}
-
-export interface AssetTransfersParams {
-  fromBlock?: string;
-  toBlock?: string;
-  order?: AssetTransfersOrder;
-  fromAddress?: string;
-  toAddress?: string;
-  contractAddresses?: string[];
-  excludeZeroValue?: boolean;
-  maxCount?: number;
-  category?: AssetTransfersCategory[];
-  pageKey?: string;
-}
-
-export enum AssetTransfersCategory {
-  EXTERNAL = "external",
-  INTERNAL = "internal",
-  TOKEN = "token",
-  ERC20 = "erc20",
-  ERC721 = "erc721",
-  ERC1155 = "erc1155",
-}
-
-export enum AssetTransfersOrder {
-  ASCENDING = "asc",
-  DESCENDING = "desc",
-}
-
-export interface AssetTransfersResponse {
-  transfers: AssetTransfersResult[];
-  pageKey?: string;
-}
-
-export interface AssetTransfersResult {
-  category: AssetTransfersCategory;
-  blockNum: string;
-  from: string;
-  to: string | null;
-  value: number | null;
-  erc721TokenId: string | null;
-  erc1155Metadata: ERC1155Metadata[] | null;
-  asset: string | null;
-  hash: string;
-  rawContract: RawContract;
-}
-
-export interface NftMetadataParams {
-  contractAddress: string;
-  tokenId: string;
-  tokenType: "erc721" | "erc1155";
-}
-
-export interface NftMetadataResponse {
-  contract: string;
-  tokenType: "erc721" | "erc1155";
-  tokenId: string;
-  rawMetadataUri: string | null;
-  alchemyMetadataUri: string | null;
-  rawImageUri: string | null;
-  alchemyImageUri: string | null;
-  name: string | null;
-  description: string | null;
-  attributes: Array<Record<string, any>>;
-  rawMetadata: Record<string, any>;
-}
-
-export interface ERC1155Metadata {
-  tokenId: string;
-  value: string;
-}
-
-export interface RawContract {
-  value: string | null;
-  address: string | null;
-  decimal: string | null;
+    params: GetNftMetadataParams,
+    callback?: Web3Callback<GetNftMetadataResponse>,
+  ): Promise<GetNftMetadataResponse>;
+  getNfts(
+    params: GetNftsParams,
+    callback?: Web3Callback<GetNftsResponse>,
+  ): Promise<GetNftsResponse>;
 }
 
 /**
@@ -220,10 +127,8 @@ export function createAlchemyWeb3(
   config?: AlchemyWeb3Config,
 ): AlchemyWeb3 {
   const fullConfig = fillInConfigDefaults(config);
-  const { provider, senders, setWriteProvider } = makeAlchemyContext(
-    alchemyUrl,
-    fullConfig,
-  );
+  const { provider, jsonRpcSenders, restSender, setWriteProvider } =
+    makeAlchemyContext(alchemyUrl, fullConfig);
   const alchemyWeb3 = new Web3(provider) as AlchemyWeb3;
   alchemyWeb3.setProvider = () => {
     throw new Error(
@@ -233,30 +138,30 @@ export function createAlchemyWeb3(
   alchemyWeb3.setWriteProvider = setWriteProvider;
   alchemyWeb3.alchemy = {
     getTokenAllowance: (params: TokenAllowanceParams, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         method: "alchemy_getTokenAllowance",
         params: [params],
       }),
     getTokenBalances: (address, contractAddresses, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         method: "alchemy_getTokenBalances",
         params: [address, contractAddresses],
         processResponse: processTokenBalanceResponse,
       }),
     getTokenMetadata: (address, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         params: [address],
         method: "alchemy_getTokenMetadata",
       }),
     getAssetTransfers: (params: AssetTransfersParams, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         params: [
           {
@@ -273,12 +178,19 @@ export function createAlchemyWeb3(
         ],
         method: "alchemy_getAssetTransfers",
       }),
-    getNftMetadata: (params: NftMetadataParams, callback) =>
-      callAlchemyMethod({
-        senders,
+    getNftMetadata: (params: GetNftMetadataParams, callback) =>
+      callAlchemyRestEndpoint({
+        restSender,
         callback,
-        params: [{ ...params }],
-        method: "alchemy_getNftMetadata",
+        params,
+        path: "/v1/getNFTMetadata/",
+      }),
+    getNfts: (params: GetNftsParams, callback) =>
+      callAlchemyRestEndpoint({
+        restSender,
+        callback,
+        params,
+        path: "/v1/getNFTs/",
       }),
   };
   patchSubscriptions(alchemyWeb3);
@@ -301,23 +213,46 @@ function getWindowProvider(): Provider | null {
   return typeof window !== "undefined" ? window.ethereum : null;
 }
 
-interface CallAlchemyMethodParams<T> {
-  senders: JsonRpcSenders;
+interface CallAlchemyJsonRpcMethodParams<T> {
+  jsonRpcSenders: JsonRpcSenders;
   method: string;
   params: any[];
   callback?: Web3Callback<T>;
   processResponse?(response: any): T;
 }
 
-function callAlchemyMethod<T>({
-  senders,
+interface CallAlchemyRestEndpoint<T> {
+  restSender: RestPayloadSender;
+  path: string;
+  params: Record<string, any>;
+  callback?: Web3Callback<T>;
+  processResponse?(response: any): T;
+}
+
+function callAlchemyJsonRpcMethod<T>({
+  jsonRpcSenders,
   method,
   params,
   callback = noop,
   processResponse = identity,
-}: CallAlchemyMethodParams<T>): Promise<T> {
+}: CallAlchemyJsonRpcMethodParams<T>): Promise<T> {
   const promise = (async () => {
-    const result = await senders.send(method, params);
+    const result = await jsonRpcSenders.send(method, params);
+    return processResponse(result);
+  })();
+  callWhenDone(promise, callback);
+  return promise;
+}
+
+function callAlchemyRestEndpoint<T>({
+  restSender,
+  path,
+  params,
+  callback = noop,
+  processResponse = identity,
+}: CallAlchemyRestEndpoint<T>): Promise<T> {
+  const promise = (async () => {
+    const result = await restSender.sendRestPayload(path, params);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);

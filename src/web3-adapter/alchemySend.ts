@@ -2,15 +2,15 @@ import SturdyWebSocket from "sturdy-websocket";
 import { SingleOrBatchRequest, SingleOrBatchResponse } from "../types";
 
 export interface AlchemySender {
-  alchemySend: AlchemySendFunction;
+  alchemySend: AlchemySendJsonRpcFunction;
   ws?: SturdyWebSocket;
 }
 
-export type AlchemySendFunction = (
+export type AlchemySendJsonRpcFunction = (
   request: SingleOrBatchRequest,
-) => Promise<AlchemySendResult>;
+) => Promise<AlchemySendJsonRpcResult>;
 
-export type AlchemySendResult =
+export type AlchemySendJsonRpcResult =
   | JsonRpcSendResult
   | RateLimitSendResult
   | NetworkErrorSendResult;

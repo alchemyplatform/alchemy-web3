@@ -148,7 +148,7 @@ export interface NftMetadataResponse {
   alchemyImageUri: string | null;
   name: string | null;
   description: string | null;
-  attributes: [Record<string, any>] | null;
+  attributes: Array<Record<string, any>>;
   rawMetadata: Record<string, any>;
 }
 

@@ -8,13 +8,13 @@ import { fromHex, toHex } from "../src/util/hex";
 import { JsonRpcSenders } from "../src/util/jsonRpc";
 import { Mocked } from "./testUtils";
 
-let senders: Mocked<JsonRpcSenders>;
+let jsonRpcSenders: Mocked<JsonRpcSenders>;
 let getNewHeadsBackfill: Backfiller["getNewHeadsBackfill"];
 const isCancelled = () => false;
 
 beforeEach(() => {
-  senders = { send: jest.fn(), sendBatch: jest.fn() };
-  ({ getNewHeadsBackfill } = makeBackfiller(senders));
+  jsonRpcSenders = { send: jest.fn(), sendBatch: jest.fn() };
+  ({ getNewHeadsBackfill } = makeBackfiller(jsonRpcSenders));
 });
 
 describe("getNewHeadsBackfill", () => {
@@ -24,8 +24,8 @@ describe("getNewHeadsBackfill", () => {
       makeNewHeadsEvent(11, "b"),
       makeNewHeadsEvent(12, "c"),
     ];
-    senders.send.mockResolvedValue(toHex(12));
-    senders.sendBatch.mockResolvedValue(heads);
+    jsonRpcSenders.send.mockResolvedValue(toHex(12));
+    jsonRpcSenders.sendBatch.mockResolvedValue(heads);
     const result = await getNewHeadsBackfill(isCancelled, [], 9);
     expect(result).toEqual(heads);
     expectGetBlockRangeCalled(10, 13);
@@ -37,8 +37,8 @@ describe("getNewHeadsBackfill", () => {
       makeNewHeadsEvent(11, "b"),
     ];
     const expected = [makeNewHeadsEvent(12, "c"), makeNewHeadsEvent(13, "d")];
-    senders.sendBatch.mockResolvedValue(expected);
-    senders.send
+    jsonRpcSenders.sendBatch.mockResolvedValue(expected);
+    jsonRpcSenders.send
       .mockResolvedValueOnce(toHex(13))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b"));
     const result = await getNewHeadsBackfill(isCancelled, previousHeads, 9);
@@ -54,8 +54,8 @@ describe("getNewHeadsBackfill", () => {
       makeNewHeadsEvent(12, "c"),
     ];
     const newHeads = [makeNewHeadsEvent(13, "d"), makeNewHeadsEvent(14, "e")];
-    senders.sendBatch.mockResolvedValue(newHeads);
-    senders.send
+    jsonRpcSenders.sendBatch.mockResolvedValue(newHeads);
+    jsonRpcSenders.send
       .mockResolvedValueOnce(toHex(14))
       .mockResolvedValueOnce(makeNewHeadsEvent(12, "c'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b'"))
@@ -81,8 +81,8 @@ describe("getNewHeadsBackfill", () => {
       makeNewHeadsEvent(12, "c"),
     ];
     const newHeads = [makeNewHeadsEvent(13, "d"), makeNewHeadsEvent(14, "e")];
-    senders.sendBatch.mockResolvedValue(newHeads);
-    senders.send
+    jsonRpcSenders.sendBatch.mockResolvedValue(newHeads);
+    jsonRpcSenders.send
       .mockResolvedValueOnce(toHex(14))
       .mockResolvedValueOnce(makeNewHeadsEvent(12, "c'"))
       .mockResolvedValueOnce(makeNewHeadsEvent(11, "b'"))
@@ -105,7 +105,9 @@ describe("getNewHeadsBackfill", () => {
 
 function expectGetBlockCalled(blockNumber: number): void {
   expect(
-    senders.send.mock.calls.some((call) => fromHex(call[0]) === blockNumber),
+    jsonRpcSenders.send.mock.calls.some(
+      (call) => fromHex(call[0]) === blockNumber,
+    ),
   );
 }
 
@@ -113,8 +115,8 @@ function expectGetBlockRangeCalled(
   startInclusive: number,
   endExclusive: number,
 ): void {
-  expect(senders.sendBatch).toBeCalled();
-  const requestedBlockNumbers = senders.sendBatch.mock.calls[0][0].map(
+  expect(jsonRpcSenders.sendBatch).toBeCalled();
+  const requestedBlockNumbers = jsonRpcSenders.sendBatch.mock.calls[0][0].map(
     (request: JsonRpcRequest) => fromHex(request.params![0]),
   );
   const expectedRange: number[] = [];

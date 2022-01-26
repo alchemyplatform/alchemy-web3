@@ -117,6 +117,7 @@ export interface GetNftMetadataResponse {
 export interface GetNftsParams {
   owner: string;
   pageKey?: string;
+  contractAddresses?: string[];
 }
 
 export interface GetNftsResponse {

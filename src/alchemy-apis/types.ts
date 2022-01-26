@@ -84,8 +84,13 @@ export interface NftMetadata {
   attributes?: Array<Record<string, any>>;
 }
 
+export interface TokenUri {
+  raw: string;
+  gateway: string;
+}
+
 export interface NftMedia {
-  uri?: string;
+  uri?: TokenUri;
 }
 
 export interface NftContract {
@@ -110,8 +115,12 @@ export interface GetNftMetadataParams {
 export interface GetNftMetadataResponse {
   contract: NftContract;
   id: NftId;
-  media?: NftMedia;
+  title: string;
+  description: string;
+  tokenUri?: TokenUri;
+  media?: NftMedia[];
   metadata?: NftMetadata;
+  timeLastUpdated: string;
 }
 
 export interface GetNftsParams {

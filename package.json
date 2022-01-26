@@ -1,6 +1,6 @@
 {
   "name": "@alch/alchemy-web3",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Web3 client extended with Alchemy and browser provider integration.",
   "module": "dist/esm/index.js",
   "main": "dist/cjs/index.js",

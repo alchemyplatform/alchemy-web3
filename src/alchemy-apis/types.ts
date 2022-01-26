@@ -52,6 +52,7 @@ export enum AssetTransfersCategory {
   ERC20 = "erc20",
   ERC721 = "erc721",
   ERC1155 = "erc1155",
+  SPECIALNFT = "specialnft",
 }
 
 export enum AssetTransfersOrder {
@@ -72,6 +73,7 @@ export interface AssetTransfersResult {
   value: number | null;
   erc721TokenId: string | null;
   erc1155Metadata: ERC1155Metadata[] | null;
+  tokenId: string | null;
   asset: string | null;
   hash: string;
   rawContract: RawContract;
@@ -102,15 +104,13 @@ export interface NftTokenMetadata {
 export interface GetNftMetadataParams {
   contractAddress: string;
   tokenId: string;
-  tokenType: "erc721" | "erc1155";
+  tokenType?: "erc721" | "erc1155";
 }
 
 export interface GetNftMetadataResponse {
   contract: NftContract;
   id: NftId;
-  externalDomainViewUrl?: string | null;
   media?: NftMedia;
-  alternateMedia?: NftMedia[];
   metadata?: NftMetadata;
 }
 

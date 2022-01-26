@@ -345,7 +345,7 @@ An object with the following fields:
 
 An object with the following fields:
 
-- `ownedNfts`: An array of NFT objects that they address owns. Each NFT object has the following structure.
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
   - `contract`:
     - `address`: The address of the contract or collection that the NFT belongs to.
   - `id`:

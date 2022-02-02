@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@types/jest": "^24.0.18",
+    "@types/urijs": "^1.19.18",
     "@types/websocket": "^0.0.40",
     "husky": "^3.0.5",
     "jest": "^24.9.0",
@@ -70,6 +71,7 @@
     "fetch-ponyfill": "^6.0.2",
     "sturdy-websocket": "^0.2.1",
     "tslib": "^2.1.0",
+    "urijs": "^1.19.7",
     "web3": "1.6.0",
     "web3-core": "1.6.0",
     "web3-core-helpers": "1.6.0",

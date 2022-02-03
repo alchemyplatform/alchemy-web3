@@ -15,6 +15,8 @@ import {
   TokenAllowanceResponse,
   TokenBalancesResponse,
   TokenMetadataResponse,
+  TransactionReceiptsParams,
+  TransactionReceiptsResponse,
 } from "./alchemy-apis/types";
 import {
   AlchemyWeb3Config,
@@ -68,6 +70,10 @@ export interface AlchemyMethods {
     params: GetNftsParams,
     callback?: Web3Callback<GetNftsResponse>,
   ): Promise<GetNftsResponse>;
+  getTransactionReceipts(
+    params: TransactionReceiptsParams,
+    callback?: Web3Callback<TransactionReceiptsResponse>,
+  ): Promise<TransactionReceiptsResponse>;
 }
 
 /**
@@ -191,6 +197,13 @@ export function createAlchemyWeb3(
         callback,
         params,
         path: "/v1/getNFTs/",
+      }),
+    getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
+        callback,
+        method: "alchemy_getTransactionReceipts",
+        params: [params],
       }),
   };
   patchSubscriptions(alchemyWeb3);

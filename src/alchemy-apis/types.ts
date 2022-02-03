@@ -1,3 +1,5 @@
+import { TransactionReceipt } from "web3-core";
+
 export interface TokenAllowanceParams {
   contract: string;
   owner: string;
@@ -133,6 +135,20 @@ export interface GetNftsResponse {
   ownedNfts: Nft[];
   pageKey?: string;
   totalCount: number;
+}
+
+export interface TransactionReceiptsBlockNumber {
+  blockNumber: string;
+}
+export interface TransactionReceiptsBlockHash {
+  blockHash: string;
+}
+export type TransactionReceiptsParams =
+  | TransactionReceiptsBlockNumber
+  | TransactionReceiptsBlockHash;
+
+export interface TransactionReceiptsResponse {
+  receipts: TransactionReceipt[];
 }
 
 export interface Nft {

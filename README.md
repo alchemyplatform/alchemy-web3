@@ -387,6 +387,24 @@ An object with the following fields:
   - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with unknown keys and values, as they depend directly on the contract.
 - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
 
+
+### `web3.alchemy.getTransactionReceipts({blockNumber | blockHash})`
+
+Fetches all transaction receipts for a block number or a block hash.
+
+**Parameters:**
+- blockNumber - (hex) The block number to get transaction receipts for
+- blockHash - The block hash to get transaction receipts for
+
+Note that either `blockNumber` or `blockHash` can be set.
+
+**Returns:**
+- `{receipts: TransactionReceipt[]}`
+
+The returned object is a list of transaction receipts for each transaction in this block. See 
+[eth_getTransactionReceipt](https://docs.alchemy.com/alchemy/apis/ethereum/eth_gettransactionreceipt#returns)
+  for the payload of an individual transaction receipt.
+
 ### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
 
 Subscribes to pending transactions, similar to the standard Web3 call

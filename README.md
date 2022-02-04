@@ -399,8 +399,7 @@ Fetches all transaction receipts for a block number or a block hash.
 Note that either `blockNumber` or `blockHash` can be set.
 
 **Returns:**
-- `{receipts: TransactionReceipt[]} | null` - An array of transaction receipts, or `null` if the block number or hash
-is not found.
+- `{receipts: TransactionReceipt[]}`
 
 The returned object is a list of transaction receipts for each transaction in this block. See 
 [eth_getTransactionReceipt](https://docs.alchemy.com/alchemy/apis/ethereum/eth_gettransactionreceipt#returns)

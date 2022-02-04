@@ -148,7 +148,7 @@ export type TransactionReceiptsParams =
   | TransactionReceiptsBlockHash;
 
 export interface TransactionReceiptsResponse {
-  receipts: TransactionReceipt[] | null;
+  receipts: TransactionReceipt[];
 }
 
 export interface Nft {

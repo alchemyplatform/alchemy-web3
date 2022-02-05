@@ -34,6 +34,8 @@ import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
 import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
+export * from "./alchemy-apis/types";
+
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
 const DEFAULT_RETRY_JITTER = 250;

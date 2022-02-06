@@ -266,8 +266,9 @@ function callAlchemyRestEndpoint<T>({
   callback = noop,
   processResponse = identity,
 }: CallAlchemyRestEndpoint<T>): Promise<T> {
+  const fixedParams = fixArrayQueryParams(params);
   const promise = (async () => {
-    const result = await restSender.sendRestPayload(path, params);
+    const result = await restSender.sendRestPayload(path, fixedParams);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);
@@ -382,4 +383,27 @@ function noop(): void {
 
 function identity<T>(x: T): T {
   return x;
+}
+
+/**
+ * Alchemy's APIs receive multivalued params via keys with `[]` at the end.
+ * Update any query params whose values are arrays to match this convention.
+ */
+function fixArrayQueryParams(params: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  Object.keys(params).forEach((key) => {
+    const value = params[key];
+    const fixedKey = Array.isArray(value) ? toArrayKey(key) : key;
+    result[fixedKey] = value;
+  });
+  return result;
+}
+
+function toArrayKey(key: string): string {
+  return endsWith(key, "[]") ? key : `${key}[]`;
+}
+
+function endsWith(s: string, ending: string): boolean {
+  const index = s.lastIndexOf(ending);
+  return index >= 0 && index === s.length - ending.length;
 }

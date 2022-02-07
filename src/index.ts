@@ -403,6 +403,9 @@ function toArrayKey(key: string): string {
   return endsWith(key, "[]") ? key : `${key}[]`;
 }
 
+/**
+ * Like `String#endsWith`, for older environments.
+ */
 function endsWith(s: string, ending: string): boolean {
   const index = s.lastIndexOf(ending);
   return index >= 0 && index === s.length - ending.length;

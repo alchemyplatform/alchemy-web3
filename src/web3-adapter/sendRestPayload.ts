@@ -30,6 +30,10 @@ export function makeRestPayloadSender({
     error =
       "Alchemy specific rest endpoints are not available with a non Alchemy provider.";
   }
+  if (url.includes("alchemyapi.io") && !url.includes("eth-")) {
+    error =
+      "Alchemy specific rest endpoints on L2 networks are not available with our legacy endpoints on alchemyapi.io. Please switch over to alchemy.com";
+  }
 
   // Don't use the native `URL` class for this. It doesn't work in React Native.
   const urlObject = new URI(url);

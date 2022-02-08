@@ -301,7 +301,7 @@ Returns token balances for a specific address given a list of contracts.
 **Parameters:**
 
 1. `address`: The address for which token balances will be checked.
-2. `contractAddresses`: An array of contract addresses.
+2. `contractAddresses`: An optional array of contract addresses. Not specifying this will return all token balances. 
 
 **Returns:**
 

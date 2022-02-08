@@ -39,6 +39,7 @@ export * from "./alchemy-apis/types";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
 const DEFAULT_RETRY_JITTER = 250;
+const DEFAULT_CONTRACT_ADDRESS = "DEFAULT_TOKENS";
 
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
@@ -53,7 +54,7 @@ export interface AlchemyMethods {
   ): Promise<TokenAllowanceResponse>;
   getTokenBalances(
     address: string,
-    contractAddresses: string[],
+    contractAddresses?: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
   getTokenMetadata(
@@ -157,7 +158,7 @@ export function createAlchemyWeb3(
         jsonRpcSenders,
         callback,
         method: "alchemy_getTokenBalances",
-        params: [address, contractAddresses],
+        params: [address, contractAddresses || DEFAULT_CONTRACT_ADDRESS],
         processResponse: processTokenBalanceResponse,
       }),
     getTokenMetadata: (address, callback) =>

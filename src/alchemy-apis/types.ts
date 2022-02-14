@@ -1,5 +1,3 @@
-import { TransactionReceipt } from "web3-core";
-
 export interface TokenAllowanceParams {
   contract: string;
   owner: string;
@@ -149,6 +147,36 @@ export type TransactionReceiptsParams =
 
 export interface TransactionReceiptsResponse {
   receipts: TransactionReceipt[] | null;
+}
+
+export interface TransactionReceipt {
+  transactionHash: string;
+  blockHash: string;
+  blockNumber: string;
+  contractAddress: string | null;
+  cumulativeGasUsed: string;
+  effectiveGasPrice: string;
+  from: string;
+  gasUsed: string;
+  logs: Log[];
+  logsBloom: string;
+  root?: string;
+  status?: string;
+  to: string;
+  transactionIndex: string;
+  type: string;
+}
+
+export interface Log {
+  blockHash: string;
+  address: string;
+  logIndex: string;
+  data: string;
+  removed: boolean;
+  topics: string[];
+  blockNumber: string;
+  transactionHash: string;
+  transactionIndex: string;
 }
 
 export interface Nft {

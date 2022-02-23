@@ -10,7 +10,9 @@ import {
   GetNftMetadataParams,
   GetNftMetadataResponse,
   GetNftsParams,
+  GetNftsParamsWithoutMetadata,
   GetNftsResponse,
+  GetNftsResponseWithoutMetadata,
   TokenAllowanceParams,
   TokenAllowanceResponse,
   TokenBalancesResponse,
@@ -70,9 +72,13 @@ export interface AlchemyMethods {
     callback?: Web3Callback<GetNftMetadataResponse>,
   ): Promise<GetNftMetadataResponse>;
   getNfts(
-    params: GetNftsParams,
-    callback?: Web3Callback<GetNftsResponse>,
-  ): Promise<GetNftsResponse>;
+    params: GetNftsParams | GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponse | GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponse | GetNftsResponseWithoutMetadata>;
+  getNfts(
+    params: GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponseWithoutMetadata>;
   getTransactionReceipts(
     params: TransactionReceiptsParams,
     callback?: Web3Callback<TransactionReceiptsResponse>,
@@ -194,7 +200,7 @@ export function createAlchemyWeb3(
         params,
         path: "/v1/getNFTMetadata/",
       }),
-    getNfts: (params: GetNftsParams, callback) =>
+    getNfts: (params: GetNftsParams | GetNftsParamsWithoutMetadata, callback) =>
       callAlchemyRestEndpoint({
         restSender,
         callback,

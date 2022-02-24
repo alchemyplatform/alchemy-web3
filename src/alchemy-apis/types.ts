@@ -80,6 +80,8 @@ export interface AssetTransfersResult {
 }
 
 export interface NftMetadata extends Record<string, any> {
+  name?: string;
+  description?: string;
   image?: string;
   attributes?: Array<Record<string, any>>;
 }
@@ -112,11 +114,9 @@ export interface GetNftMetadataParams {
   tokenType?: "erc721" | "erc1155";
 }
 
-export type GetNftMetadataResponse = NftWithMetadata;
+export type GetNftMetadataResponse = NftMetadata;
 
-export interface NftWithMetadata {
-  contract: NftContract;
-  id: NftId;
+export interface Nft extends BaseNft {
   title: string;
   description: string;
   tokenUri?: TokenUri;
@@ -125,13 +125,9 @@ export interface NftWithMetadata {
   timeLastUpdated: string;
 }
 
-export interface Nft {
+export interface BaseNft {
   contract: NftContract;
   id: NftId;
-  title: string;
-  description: string;
-  tokenUri?: TokenUri;
-  metadata?: NftWithMetadata;
 }
 
 export interface GetNftsParams {
@@ -149,13 +145,13 @@ export interface GetNftsParamsWithoutMetadata {
 }
 
 export interface GetNftsResponse {
-  ownedNfts: NftWithMetadata[];
+  ownedNfts: Nft[];
   pageKey?: string;
   totalCount: number;
 }
 
 export interface GetNftsResponseWithoutMetadata {
-  ownedNfts: Nft[];
+  ownedNfts: BaseNft[];
   pageKey?: string;
   totalCount: number;
 }

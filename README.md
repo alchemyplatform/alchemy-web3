@@ -340,18 +340,44 @@ An object with the following fields:
 - `owner`: The address that you want to fetch NFTs for.
 - `pageKey`: (Optional) A key to fetch the next page of results.
 - `contractAddresses`: (Optional) An array of contract addresses to filter the owner's results to.
+- `withMetadata`: (Optional) If `false`, the returned NFTs will omit metadata. Defaults to `true`.
 
 **Returns:**
 
-An object with the following fields:
+When metadata is included, the returned object has the following fields:
 
 - `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
-  - `contract`:
-    - `address`: The address of the contract or collection that the NFT belongs to.
-  - `id`:
-    - `tokenId`: Raw token id.
-    - `tokenMetadata`:
-      - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+    - `title`: The title of the NFT, or an empty string if no title is available.
+    - `description`: The descriptions of the NFT, or an empty string if no description is available.
+    - `tokenUri`: (Optional)
+        - `raw`: Uri representing the location of the NFT's original metadata blob. This is a backup for you to parse
+          when the `metadata` field is not automatically populated.
+        - `gateway`: Public gateway uri for the raw uri.
+    - `media`: (Optional) An array of objects with the following structure.
+        - `uri`: A `tokenUri` as described above.
+    - `metadata`: (Optional)
+        - `image`: (Optional) A uri string that should be usable in an <image> tag.
+        - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with
+          unknown keys and values, as they depend directly on the contract.
+    - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
+- `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
+- `totalCount`: The total number of NFTs in the result set.
+
+If metadata is omitted, an object with the following fields is returned:
+
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
 - `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
 - `totalCount`: The total number of NFTs in the result set.
 

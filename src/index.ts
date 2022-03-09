@@ -1,16 +1,47 @@
 import Web3 from "web3";
 import { Log, LogsOptions, Transaction } from "web3-core";
-import { Subscription } from "web3-core-subscriptions";
+import web3CoreSubscriptions, { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
-import { hexToNumberString, toHex } from "web3-utils";
-import { AlchemyWeb3Config, FullConfig, Provider, Web3Callback } from "./types";
+import { decodeParameter } from "web3-eth-abi";
+import { toHex } from "web3-utils";
+import {
+  AssetTransfersParams,
+  AssetTransfersResponse,
+  GetNftMetadataParams,
+  GetNftMetadataResponse,
+  GetNftsParams,
+  GetNftsParamsWithoutMetadata,
+  GetNftsResponse,
+  GetNftsResponseWithoutMetadata,
+  TokenAllowanceParams,
+  TokenAllowanceResponse,
+  TokenBalancesResponse,
+  TokenMetadataResponse,
+  TransactionReceiptsParams,
+  TransactionReceiptsResponse,
+} from "./alchemy-apis/types";
+import {
+  AlchemyWeb3Config,
+  FullConfig,
+  Provider,
+  TransactionsOptions,
+  Web3Callback,
+} from "./types";
+import { formatBlock } from "./util/hex";
 import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
+import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
+import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
+import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
+import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
+
+export * from "./alchemy-apis/types";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
 const DEFAULT_RETRY_JITTER = 250;
+const DEFAULT_CONTRACT_ADDRESS = "DEFAULT_TOKENS";
 
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
@@ -25,7 +56,7 @@ export interface AlchemyMethods {
   ): Promise<TokenAllowanceResponse>;
   getTokenBalances(
     address: string,
-    contractAddresses: string[],
+    contractAddresses?: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
   getTokenMetadata(
@@ -36,81 +67,22 @@ export interface AlchemyMethods {
     params: AssetTransfersParams,
     callback?: Web3Callback<AssetTransfersResponse>,
   ): Promise<AssetTransfersResponse>;
-}
-
-export interface TokenAllowanceParams {
-  contract: string;
-  owner: string;
-  spender: string;
-}
-
-export type TokenAllowanceResponse = string;
-
-export interface TokenBalancesResponse {
-  address: string;
-  tokenBalances: TokenBalance[];
-}
-
-export type TokenBalance = TokenBalanceSuccess | TokenBalanceFailure;
-
-export interface TokenBalanceSuccess {
-  address: string;
-  tokenBalance: string;
-  error: null;
-}
-
-export interface TokenBalanceFailure {
-  address: string;
-  tokenBalance: null;
-  error: string;
-}
-
-export interface TokenMetadataResponse {
-  decimals: number | null;
-  logo: string | null;
-  name: string | null;
-  symbol: string | null;
-}
-
-export interface AssetTransfersParams {
-  fromBlock?: string;
-  toBlock?: string;
-  fromAddress?: string;
-  toAddress?: string;
-  contractAddresses?: string[];
-  excludeZeroValue?: boolean;
-  maxCount?: number;
-  category?: AssetTransfersCategory[];
-  pageKey?: string;
-}
-
-export enum AssetTransfersCategory {
-  EXTERNAL = "external",
-  INTERNAL = "internal",
-  TOKEN = "token",
-}
-
-export interface AssetTransfersResponse {
-  transfers: AssetTransfersResult[];
-  pageKey?: string;
-}
-
-export interface AssetTransfersResult {
-  category: AssetTransfersCategory;
-  blockNum: string;
-  from: string;
-  to: string | null;
-  value: number | null;
-  erc721TokenId: string | null;
-  asset: string | null;
-  hash: string;
-  rawContract: RawContract;
-}
-
-export interface RawContract {
-  value: string | null;
-  address: string | null;
-  decimal: string | null;
+  getNftMetadata(
+    params: GetNftMetadataParams,
+    callback?: Web3Callback<GetNftMetadataResponse>,
+  ): Promise<GetNftMetadataResponse>;
+  getNfts(
+    params: GetNftsParams | GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponse | GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponse | GetNftsResponseWithoutMetadata>;
+  getNfts(
+    params: GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponseWithoutMetadata>;
+  getTransactionReceipts(
+    params: TransactionReceiptsParams,
+    callback?: Web3Callback<TransactionReceiptsResponse>,
+  ): Promise<TransactionReceiptsResponse>;
 }
 
 /**
@@ -139,13 +111,19 @@ export interface AlchemyEth extends Eth {
     callback?: (error: Error, transaction: Transaction) => void,
   ): Subscription<Transaction>;
   subscribe(
+    type: "alchemy_filteredFullPendingTransactions",
+    options?: TransactionsOptions,
+    callback?: (error: Error, transaction: Transaction) => void,
+  ): Subscription<Transaction>;
+  subscribe(
     type:
       | "pendingTransactions"
       | "logs"
       | "syncing"
       | "newBlockHeaders"
-      | "alchemy_fullPendingTransactions",
-    options?: null | LogsOptions,
+      | "alchemy_fullPendingTransactions"
+      | "alchemy_filteredFullPendingTransactions",
+    options?: null | LogsOptions | TransactionsOptions,
     callback?: (
       error: Error,
       item: Log | Syncing | BlockHeader | string | Transaction,
@@ -164,10 +142,8 @@ export function createAlchemyWeb3(
   config?: AlchemyWeb3Config,
 ): AlchemyWeb3 {
   const fullConfig = fillInConfigDefaults(config);
-  const { provider, senders, setWriteProvider } = makeAlchemyContext(
-    alchemyUrl,
-    fullConfig,
-  );
+  const { provider, jsonRpcSenders, restSender, setWriteProvider } =
+    makeAlchemyContext(alchemyUrl, fullConfig);
   const alchemyWeb3 = new Web3(provider) as AlchemyWeb3;
   alchemyWeb3.setProvider = () => {
     throw new Error(
@@ -177,42 +153,72 @@ export function createAlchemyWeb3(
   alchemyWeb3.setWriteProvider = setWriteProvider;
   alchemyWeb3.alchemy = {
     getTokenAllowance: (params: TokenAllowanceParams, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         method: "alchemy_getTokenAllowance",
         params: [params],
       }),
     getTokenBalances: (address, contractAddresses, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         method: "alchemy_getTokenBalances",
-        params: [address, contractAddresses],
+        params: [address, contractAddresses || DEFAULT_CONTRACT_ADDRESS],
         processResponse: processTokenBalanceResponse,
       }),
     getTokenMetadata: (address, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         params: [address],
         method: "alchemy_getTokenMetadata",
       }),
     getAssetTransfers: (params: AssetTransfersParams, callback) =>
-      callAlchemyMethod({
-        senders,
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
         callback,
         params: [
           {
             ...params,
+            fromBlock:
+              params.fromBlock != null
+                ? formatBlock(params.fromBlock)
+                : undefined,
+            toBlock:
+              params.toBlock != null ? formatBlock(params.toBlock) : undefined,
             maxCount:
               params.maxCount != null ? toHex(params.maxCount) : undefined,
           },
         ],
         method: "alchemy_getAssetTransfers",
       }),
+    getNftMetadata: (params: GetNftMetadataParams, callback) =>
+      callAlchemyRestEndpoint({
+        restSender,
+        callback,
+        params,
+        path: "/v1/getNFTMetadata/",
+      }),
+    getNfts: (params: GetNftsParams | GetNftsParamsWithoutMetadata, callback) =>
+      callAlchemyRestEndpoint({
+        restSender,
+        callback,
+        params,
+        path: "/v1/getNFTs/",
+      }),
+    getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
+        callback,
+        method: "alchemy_getTransactionReceipts",
+        params: [params],
+      }),
   };
   patchSubscriptions(alchemyWeb3);
+  patchEnableCustomRPC(alchemyWeb3);
+  patchEthFeeHistoryMethod(alchemyWeb3);
+  patchEthMaxPriorityFeePerGasMethod(alchemyWeb3);
   return alchemyWeb3;
 }
 
@@ -229,23 +235,47 @@ function getWindowProvider(): Provider | null {
   return typeof window !== "undefined" ? window.ethereum : null;
 }
 
-interface CallAlchemyMethodParams<T> {
-  senders: JsonRpcSenders;
+interface CallAlchemyJsonRpcMethodParams<T> {
+  jsonRpcSenders: JsonRpcSenders;
   method: string;
   params: any[];
   callback?: Web3Callback<T>;
   processResponse?(response: any): T;
 }
 
-function callAlchemyMethod<T>({
-  senders,
+interface CallAlchemyRestEndpoint<T> {
+  restSender: RestPayloadSender;
+  path: string;
+  params: Record<string, any>;
+  callback?: Web3Callback<T>;
+  processResponse?(response: any): T;
+}
+
+function callAlchemyJsonRpcMethod<T>({
+  jsonRpcSenders,
   method,
   params,
   callback = noop,
   processResponse = identity,
-}: CallAlchemyMethodParams<T>): Promise<T> {
+}: CallAlchemyJsonRpcMethodParams<T>): Promise<T> {
   const promise = (async () => {
-    const result = await senders.send(method, params);
+    const result = await jsonRpcSenders.send(method, params);
+    return processResponse(result);
+  })();
+  callWhenDone(promise, callback);
+  return promise;
+}
+
+function callAlchemyRestEndpoint<T>({
+  restSender,
+  path,
+  params,
+  callback = noop,
+  processResponse = identity,
+}: CallAlchemyRestEndpoint<T>): Promise<T> {
+  const fixedParams = fixArrayQueryParams(params);
+  const promise = (async () => {
+    const result = await restSender.sendRestPayload(path, fixedParams);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);
@@ -258,7 +288,10 @@ function processTokenBalanceResponse(
   // Convert token balance fields from hex-string to decimal-string.
   const fixedTokenBalances = rawResponse.tokenBalances.map((balance) =>
     balance.tokenBalance != null
-      ? { ...balance, tokenBalance: hexToNumberString(balance.tokenBalance) }
+      ? {
+          ...balance,
+          tokenBalance: decodeParameter("uint256", balance.tokenBalance),
+        }
       : balance,
   );
   return { ...rawResponse, tokenBalances: fixedTokenBalances };
@@ -278,6 +311,18 @@ function patchSubscriptions(web3: Web3): void {
     ) {
       return suppressNoSubscriptionExistsWarning(() =>
         oldSubscribe("alchemy_newFullPendingTransactions" as any, ...rest),
+      );
+    }
+    if (
+      type === "alchemy_filteredNewFullPendingTransactions" ||
+      type === "alchemy_filteredPendingTransactions" ||
+      type === "alchemy_filteredFullPendingTransactions"
+    ) {
+      return suppressNoSubscriptionExistsWarning(() =>
+        oldSubscribe(
+          "alchemy_filteredNewFullPendingTransactions" as any,
+          ...rest,
+        ),
       );
     }
     return oldSubscribe(type as any, ...rest);
@@ -306,10 +351,69 @@ function suppressNoSubscriptionExistsWarning<T>(f: () => T): T {
   }
 }
 
+/**
+ * Another VERY hacky monkeypatch to make sure that we can take extra parameters to certain alchemy subscriptions
+ * I hate doing this, but the other option is to fork web3-core and I think for now this is better
+ */
+const { subscription } = web3CoreSubscriptions as any;
+const oldSubscriptionPrototypeValidateArgs =
+  subscription.prototype._validateArgs;
+subscription.prototype._validateArgs = function (args: any) {
+  if (
+    [
+      "alchemy_filteredNewFullPendingTransactions",
+      "alchemy_filteredPendingTransactions",
+      "alchemy_filteredFullPendingTransactions",
+    ].includes(this.subscriptionMethod)
+  ) {
+    // This particular subscription type is allowed to have additional parameters
+  } else {
+    if (
+      [
+        "alchemy_fullPendingTransactions",
+        "alchemy_newFullPendingTransactions",
+      ].includes(this.subscriptionMethod)
+    ) {
+      if (this.options.subscription) {
+        this.options.subscription.subscriptionName = this.subscriptionMethod;
+      }
+    }
+
+    const validator = oldSubscriptionPrototypeValidateArgs.bind(this);
+    validator(args);
+  }
+};
+
 function noop(): void {
   // Nothing.
 }
 
 function identity<T>(x: T): T {
   return x;
+}
+
+/**
+ * Alchemy's APIs receive multivalued params via keys with `[]` at the end.
+ * Update any query params whose values are arrays to match this convention.
+ */
+function fixArrayQueryParams(params: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  Object.keys(params).forEach((key) => {
+    const value = params[key];
+    const fixedKey = Array.isArray(value) ? toArrayKey(key) : key;
+    result[fixedKey] = value;
+  });
+  return result;
+}
+
+function toArrayKey(key: string): string {
+  return endsWith(key, "[]") ? key : `${key}[]`;
+}
+
+/**
+ * Like `String#endsWith`, for older environments.
+ */
+function endsWith(s: string, ending: string): boolean {
+  const index = s.lastIndexOf(ending);
+  return index >= 0 && index === s.length - ending.length;
 }

@@ -27,8 +27,12 @@ export function callWhenDone<T>(
   callback: Web3Callback<T>,
 ): void {
   promise.then(
-    (result) => callback(null, result),
-    (error) => callback(error),
+    (result) => {
+      callback(null, result);
+    },
+    (error) => {
+      callback(error);
+    },
   );
 }
 

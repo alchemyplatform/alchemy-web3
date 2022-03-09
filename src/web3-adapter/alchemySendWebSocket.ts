@@ -7,16 +7,21 @@ import {
   SingleOrBatchResponse,
   WebSocketMessage,
 } from "../types";
-import { AlchemySendFunction, AlchemySendResult } from "./alchemySend";
+import {
+  AlchemySendJsonRpcFunction,
+  AlchemySendJsonRpcResult,
+} from "./alchemySend";
 
 interface RequestContext {
   request: SingleOrBatchRequest;
-  resolve(response: AlchemySendResult): void;
+  resolve(response: AlchemySendJsonRpcResult): void;
 }
 
-export function makeWebSocketSender(ws: SturdyWebSocket): AlchemySendFunction {
+export function makeWebSocketSender(
+  ws: SturdyWebSocket,
+): AlchemySendJsonRpcFunction {
   const contextsById = new Map<JsonRpcId, RequestContext>();
-  ws.addEventListener("message", message => {
+  ws.addEventListener("message", (message) => {
     const response: WebSocketMessage = JSON.parse(message.data);
     if (!isResponse(response)) {
       return;
@@ -60,8 +65,8 @@ export function makeWebSocketSender(ws: SturdyWebSocket): AlchemySendFunction {
     }
   });
 
-  return request =>
-    new Promise(resolve => {
+  return (request) =>
+    new Promise((resolve) => {
       const id = getIdFromRequest(request);
       if (id !== undefined) {
         const existingContext = contextsById.get(id);
@@ -86,7 +91,7 @@ function getIdFromRequest(
   if (!Array.isArray(request)) {
     return request.id;
   }
-  return getCanonicalIdFromList(request.map(p => p.id));
+  return getCanonicalIdFromList(request.map((p) => p.id));
 }
 
 function getIdFromResponse(
@@ -95,7 +100,7 @@ function getIdFromResponse(
   if (!Array.isArray(response)) {
     return response.id;
   }
-  return getCanonicalIdFromList(response.map(p => p.id));
+  return getCanonicalIdFromList(response.map((p) => p.id));
 }
 
 /**
@@ -108,11 +113,11 @@ function getIdFromResponse(
 function getCanonicalIdFromList(
   ids: Array<JsonRpcId | undefined>,
 ): JsonRpcId | undefined {
-  const stringIds: string[] = ids.filter(id => typeof id === "string") as any;
+  const stringIds: string[] = ids.filter((id) => typeof id === "string") as any;
   if (stringIds.length > 0) {
     return stringIds.reduce((bestId, id) => (bestId < id ? bestId : id));
   }
-  const numberIds: number[] = ids.filter(id => typeof id === "number") as any;
+  const numberIds: number[] = ids.filter((id) => typeof id === "number") as any;
   if (numberIds.length > 0) {
     return Math.min(...numberIds);
   }

@@ -27,7 +27,7 @@ import {
   withBackoffRetries,
   withTimeout,
 } from "../util/promises";
-import { SendPayloadFunction } from "./sendPayload";
+import { SendJsonRpcPayloadFunction } from "./sendJsonRpcPayload";
 
 const HEARTBEAT_INTERVAL = 30000;
 const HEARTBEAT_WAIT_TIME = 10000;
@@ -93,17 +93,16 @@ interface LogsSubscription extends VirtualSubscription {
 
 export class AlchemyWebSocketProvider
   extends EventEmitter
-  implements Web3SubscriptionProvider {
+  implements Web3SubscriptionProvider
+{
   // In the case of a WebSocket reconnection, all subscriptions are lost and we
   // create new ones to replace them, but we want to create the illusion that
   // the original subscriptions persist. Thus, maintain a mapping from the
   // "virtual" subscription ids which are visible to the consumer to the
   // "physical" subscription ids of the actual connections. This terminology is
   // borrowed from virtual and physical memory, which has a similar mapping.
-  private readonly virtualSubscriptionsById: Map<
-    string,
-    VirtualSubscription
-  > = new Map();
+  private readonly virtualSubscriptionsById: Map<string, VirtualSubscription> =
+    new Map();
   private readonly virtualIdsByPhysicalId: Map<string, string> = new Map();
   private readonly backfiller: Backfiller;
   private heartbeatIntervalId?: NodeJS.Timeout;
@@ -111,11 +110,11 @@ export class AlchemyWebSocketProvider
 
   constructor(
     private readonly ws: SturdyWebSocket,
-    private readonly sendPayload: SendPayloadFunction,
-    private readonly senders: JsonRpcSenders,
+    private readonly sendJsonRpcPayload: SendJsonRpcPayloadFunction,
+    private readonly jsonRpcSenders: JsonRpcSenders,
   ) {
     super();
-    this.backfiller = makeBackfiller(senders);
+    this.backfiller = makeBackfiller(jsonRpcSenders);
     this.addSocketListeners();
     this.startHeartbeat();
   }
@@ -137,7 +136,7 @@ export class AlchemyWebSocketProvider
       callWhenDone(this.unsubscribe(request), callback);
       return;
     }
-    callWhenDone(this.sendPayload(request), callback);
+    callWhenDone(this.sendJsonRpcPayload(request), callback);
   }
 
   public supportsSubscriptions(): true {
@@ -167,7 +166,7 @@ export class AlchemyWebSocketProvider
   private async subscribe(request: JsonRpcRequest): Promise<JsonRpcResponse> {
     const { method, params = [] } = request;
     const startingBlockNumber = await this.getBlockNumber();
-    const response = await this.sendPayload(request);
+    const response = await this.sendJsonRpcPayload(request);
     const id = response.result;
     this.virtualSubscriptionsById.set(id, {
       method,
@@ -185,15 +184,14 @@ export class AlchemyWebSocketProvider
 
   private async unsubscribe(request: JsonRpcRequest): Promise<JsonRpcResponse> {
     const subscriptionId = request.params?.[0];
-    const virtualSubscription = this.virtualSubscriptionsById.get(
-      subscriptionId,
-    );
+    const virtualSubscription =
+      this.virtualSubscriptionsById.get(subscriptionId);
     if (!virtualSubscription) {
       return makeResponse(request.id!, false);
     }
     const { physicalId } = virtualSubscription;
     const physicalRequest = { ...request, params: [physicalId] };
-    await this.sendPayload(physicalRequest);
+    await this.sendJsonRpcPayload(physicalRequest);
     this.virtualSubscriptionsById.delete(subscriptionId);
     this.virtualIdsByPhysicalId.delete(physicalId);
     return makeResponse(request.id!, true);
@@ -218,7 +216,7 @@ export class AlchemyWebSocketProvider
     this.heartbeatIntervalId = setInterval(async () => {
       try {
         await withTimeout(
-          this.senders.send("net_version"),
+          this.jsonRpcSenders.send("net_version"),
           HEARTBEAT_WAIT_TIME,
         );
       } catch {
@@ -316,7 +314,7 @@ export class AlchemyWebSocketProvider
     subscription.isBackfilling = true;
     backfillBuffer.length = 0;
     try {
-      const physicalId = await this.senders.send(method, params);
+      const physicalId = await this.jsonRpcSenders.send(method, params);
       throwIfCancelled(isCancelled);
       subscription.physicalId = physicalId;
       this.virtualIdsByPhysicalId.set(physicalId, virtualId);
@@ -371,7 +369,9 @@ export class AlchemyWebSocketProvider
   }
 
   private async getBlockNumber(): Promise<number> {
-    const blockNumberHex: string = await this.senders.send("eth_blockNumber");
+    const blockNumberHex: string = await this.jsonRpcSenders.send(
+      "eth_blockNumber",
+    );
     return fromHex(blockNumberHex);
   }
 

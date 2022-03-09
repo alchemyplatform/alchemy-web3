@@ -45,10 +45,16 @@ npm install @alch/alchemy-web3
 
 ### With a CDN in the browser
 
-Alternatively, add the following script tag to your page:
+Alternatively, add one of the following script tags to your page:
 
 ```html
+<!-- Minified -->
 <script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.min.js"></script>
+```
+
+```html
+<!-- Unminified -->
+<script src="https://cdn.jsdelivr.net/npm/@alch/alchemy-web3@latest/dist/alchemyWeb3.js"></script>
 ```
 
 When using this option, you can create Alchemy-Web3 instances using the global variable `AlchemyWeb3.createAlchemyWeb3`.
@@ -58,7 +64,7 @@ When using this option, you can create Alchemy-Web3 instances using the global v
 ### Basic Usage
 
 You will need an Alchemy account to access the Alchemy API. If you don't
-have one yet, [contact Alchemy](mailto:hello@alchemyapi.io) to request one.
+have one yet, [sign up here](https://alchemy.com/?a=850af13f8e).
 
 Create the client by importing the function `createAlchemyWeb3` and then passing
 it your Alchemy app's URL and optionally a configuration object.
@@ -237,6 +243,7 @@ An object with the following fields:
 
 - `fromBlock`: Optional inclusive from hex string block (default latest)
 - `toBlock`: Optional inclusive to hex string block (default latest)
+- `order`: Optional string that specifies the ordering of the results by block number. Must be one of ["asc", "desc"] (default "asc")
 - `fromAddress`: Optional from hex string address (default wildcard)
 - `toAddress`: Optional to hex string address (default wildcard)
   NOTE: `fromAddress` is ANDed with `toAddress`
@@ -244,7 +251,7 @@ An object with the following fields:
   NOTE: `contractAddresses` are ORed together
 - `excludeZeroValue`: Optional boolean to exclude transfers with zero value (default true)
 - `maxCount`: Optional number to restrict payload size (default and max of 1000)
-- `category`: Optional array of categories (default all categories ["external", "internal", "token"])
+- `category`: Optional array of categories (defaults to the following categories: ["external", "internal", "token"])
 - `pageKey`: Optional uuid pageKey to retrieve the next payload
 
 **Returns:**
@@ -253,16 +260,17 @@ An object with the following fields:
 
 - `pageKey`: Uuid for next page of results (undefined for the last page of results).
 - `transfers`: An array of objects with the following fields sorted in ascending order by block number
-  - `category`: "external", "internal" or "token" - label for the transfer
+  - `category`: "external", "internal", "token", "erc20", "erc721", "erc1155" - label for the transfer
   - `blockNum`: The block where the transfer occurred (hex string).
   - `from`: From address of transfer (hex string).
   - `to`: To address of transfer (hex string). `null` if contract creation.
   - `value`: Converted asset transfer value as a number (raw value divided by contract decimal). `null` if erc721 transfer or contract decimal not available.
-  - `erc721TokenId`: Raw erc721 token id (hex string). `null` if not an erc721 "token" transfer
+  - `erc721TokenId`: Raw erc721 token id (hex string). `null` if not an erc721 transfer
+  - `erc1155Metadata`: A list of objects containing the erc1155 `tokenId` (hex string) and `value` (hex string). `null` if not an erc1155 transfer
   - `asset`: "ETH" or the token's symbol. `null` if not defined in the contract and not available from other sources.
   - `hash`: Transaction hash (hex string).
   - `rawContract`: Object of raw values:
-    - `value`: Raw transfer value (hex string). `null` if erc721 transfer
+    - `value`: Raw transfer value (hex string). `null` if erc721 or erc1155 transfer
     - `address`: Contract address (hex string). `null` if "external" or "internal"
     - `decimal`: Contract decimal (hex string). `null` if not defined in the contract and not available from other sources.
 
@@ -293,7 +301,7 @@ Returns token balances for a specific address given a list of contracts.
 **Parameters:**
 
 1. `address`: The address for which token balances will be checked.
-2. `contractAddresses`: An array of contract addresses.
+2. `contractAddresses`: An optional array of contract addresses. Not specifying this will return all token balances. 
 
 **Returns:**
 
@@ -323,20 +331,206 @@ An object with the following fields:
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
 
+### `web3.alchemy.getNfts({owner, pageKey, contractAddresses})`
+
+**Parameters:**
+
+An object with the following fields:
+
+- `owner`: The address that you want to fetch NFTs for.
+- `pageKey`: (Optional) A key to fetch the next page of results.
+- `contractAddresses`: (Optional) An array of contract addresses to filter the owner's results to.
+- `withMetadata`: (Optional) If `false`, the returned NFTs will omit metadata. Defaults to `true`.
+
+**Returns:**
+
+When metadata is included, the returned object has the following fields:
+
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+    - `title`: The title of the NFT, or an empty string if no title is available.
+    - `description`: The descriptions of the NFT, or an empty string if no description is available.
+    - `tokenUri`: (Optional)
+        - `raw`: Uri representing the location of the NFT's original metadata blob. This is a backup for you to parse
+          when the `metadata` field is not automatically populated.
+        - `gateway`: Public gateway uri for the raw uri.
+    - `media`: (Optional) An array of objects with the following structure.
+        - `uri`: A `tokenUri` as described above.
+    - `metadata`: (Optional)
+        - `image`: (Optional) A uri string that should be usable in an <image> tag.
+        - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with
+          unknown keys and values, as they depend directly on the contract.
+    - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
+- `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
+- `totalCount`: The total number of NFTs in the result set.
+
+If metadata is omitted, an object with the following fields is returned:
+
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+- `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
+- `totalCount`: The total number of NFTs in the result set.
+
+### `web3.alchemy.getNftMetadata({contractAddress, tokenId, tokenType})`
+
+**Parameters:**
+
+An object with the following fields:
+
+- `contract`: The address of the token contract.
+- `tokenId`: Raw token id (hex string).
+- `tokenType`: (Optional) The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+
+**Returns:**
+
+An object with the following fields:
+
+- `contract`:
+  - `address`: The hex string of the contract addresses for "token" transfers.
+- `id`:
+  - `tokenId`: Raw token id.
+  - `tokenMetadata`:
+    - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+- `title`: Name of NFT.
+- `description`: A brief description of the NFT taken from the contract metadata.
+- `tokenUri`: (Optional)
+  - `raw`: Uri representing the location of the NFT's original metadata blob. This is a backup for you to parse when the `metadata` field is not automatically populated.
+  - `gateway`: Public gateway uri for the raw uri.
+- `media`: (Optional) An array of objects with the following structure.
+  - `uri`: A `tokenUri` as described above.
+- `metadata`: (Optional)
+  - `image`: (Optional) A uri string that should be usable in an <image> tag.
+  - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with unknown keys and values, as they depend directly on the contract.
+- `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
+
+
+### `web3.alchemy.getTransactionReceipts({blockNumber | blockHash})`
+
+Fetches all transaction receipts for a block number or a block hash.
+
+**Parameters:**
+- blockNumber - (hex) The block number to get transaction receipts for
+- blockHash - The block hash to get transaction receipts for
+
+Note that either `blockNumber` or `blockHash` can be set.
+
+**Returns:**
+- `{receipts: TransactionReceipt[]} | null` - An array of transaction receipts, or `null` if the block number or hash
+is not found.
+
+The returned object is a list of transaction receipts for each transaction in this block. See 
+[eth_getTransactionReceipt](https://docs.alchemy.com/alchemy/apis/ethereum/eth_gettransactionreceipt#returns)
+  for the payload of an individual transaction receipt.
+
 ### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
 
 Subscribes to pending transactions, similar to the standard Web3 call
 `web3.eth.subscribe("pendingTransactions")`, but differs in that it emits
 full transaction information rather than just transaction hashes.
 
-Note that the argument passed to this function is
-`"alchemy_fullPendingTransactions"`, which is different from the string used in
-raw `eth_subscribe` JSON-RPC calls, where it is
-`"alchemy_newFullPendingTransactions"` instead. This is confusing, but it is
-also consistent with the existing Web3 subscription APIs (for example:
-`web3.eth.subscribe("pendingTransactions")` vs `"newPendingTransactions"` in raw
-JSON-RPC).
+Note that the argument passed to this function is permitted to be either of
+`"alchemy_fullPendingTransactions"` or `"alchemy_newFullPendingTransactions"`,
+which have the same effect. The latter is the string used in raw `eth_subscribe`
+JSON-RPC calls, while the former is consistent with the existing Web3.js
+subscription APIs (for example, `web3.eth.subscribe("pendingTransactions")`
+corresponds to the raw JSON-RPC call of type `newPendingTransactions`). While
+this is unfortunately confusing, supporting both strings attempts to balance
+consistency and convenience.
+
+### `web3.eth.subscribe("alchemy_filteredFullPendingTransactions", options)`
+
+Like an `alchemy_fullPendingTransactions` subscription, but also allows passing
+an `options` argument containing an `address` field to filter the returned
+transactions to those from or to the specified address. The options argument is
+as described in [the documentation
+here](https://docs.alchemy.com/alchemy/guides/using-websockets#2-alchemy_filterednewfullpendingtransactions).
+
+Similar to the previous point, note that the argument passed to this function
+may be either of `"alchemy_filteredFullPendingTransactions"` or
+`"alchemy_filteredNewPendingTransactions"`.
 
 <br/>
 
 Copyright © 2019 Alchemy Insights Inc.
+
+## EIP 1559
+
+### `web3.eth.getFeeHistory(blockRange, startingBlock, percentiles[])`
+
+Fetches the fee history for the given block range as per the [eth spec](https://github.com/ethereum/eth1.0-specs/blob/master/json-rpc/spec.json).
+
+**Parameters**
+
+- `blockRange`: The number of blocks for which to fetch historical fees. Can be an integer or a hex string.
+- `startingBlock`: The block to start the search. The result will look backwards from here. Can be a hex string or a predefined block string e.g. "latest".
+- `percentiles`: (Optional) An array of numbers that define which percentiles of reward values you want to see for each block.
+
+**Returns**
+
+An object with the following fields:
+
+- `oldestBlock`: The oldest block in the range that the fee history is being returned for.
+- `baseFeePerGas`: An array of base fees for each block in the range that was looked up. These are the same values that would be returned on a block for the `eth_getBlockByNumber` method.
+- `gasUsedRatio`: An array of the ratio of gas used to gas limit for each block.
+- `reward`: Only returned if a percentiles parameter was provided. Each block will have an array corresponding to the percentiles provided. Each element of the nested array will have the tip provided to miners for the percentile given. So if you provide [50, 90] as the percentiles then each block will have a 50th percentile reward and a 90th percentile reward.
+
+**Example**
+
+Method call
+
+```
+web3.eth.getFeeHistory(4, "latest", [25, 50, 75]).then(console.log);
+
+```
+
+Logged response
+
+```
+{
+  oldestBlock: 12930639,
+  reward: [
+    [ '0x649534e00', '0x66720b300', '0x826299e00' ],
+    [ '0x649534e00', '0x684ee1800', '0x7ea8ed400' ],
+    [ '0x5ea8dd480', '0x60db88400', '0x684ee1800' ],
+    [ '0x59682f000', '0x5d21dba00', '0x5d21dba00' ]
+  ],
+  baseFeePerGas: [ '0x0', '0x0', '0x0', '0x0', '0x0' ],
+  gasUsedRatio: [ 0.9992898398856537, 0.9999566454373825, 0.9999516, 0.9999378 ]
+}
+```
+
+### `web3.eth.getMaxPriorityFeePerGas()`
+
+Returns a quick estimate for `maxPriorityFeePerGas` in EIP 1559 transactions. Rather than using `feeHistory` and making a calculation yourself you can just use this method to get a quick estimate. Note: this is a geth-only method, but Alchemy handles that for you behind the scenes.
+
+**Parameters**
+
+None!
+
+**Returns**
+
+A hex, which is the `maxPriorityFeePerGas` suggestion. You can plug this directly into your transaction field.
+
+**Example**
+
+Method call
+
+```
+web3.eth.getMaxPriorityFeePerGas().then(console.log);
+```
+
+Logged response
+
+```
+0x560de0700
+```

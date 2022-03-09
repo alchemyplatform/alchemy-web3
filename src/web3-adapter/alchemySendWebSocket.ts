@@ -7,14 +7,19 @@ import {
   SingleOrBatchResponse,
   WebSocketMessage,
 } from "../types";
-import { AlchemySendFunction, AlchemySendResult } from "./alchemySend";
+import {
+  AlchemySendJsonRpcFunction,
+  AlchemySendJsonRpcResult,
+} from "./alchemySend";
 
 interface RequestContext {
   request: SingleOrBatchRequest;
-  resolve(response: AlchemySendResult): void;
+  resolve(response: AlchemySendJsonRpcResult): void;
 }
 
-export function makeWebSocketSender(ws: SturdyWebSocket): AlchemySendFunction {
+export function makeWebSocketSender(
+  ws: SturdyWebSocket,
+): AlchemySendJsonRpcFunction {
   const contextsById = new Map<JsonRpcId, RequestContext>();
   ws.addEventListener("message", (message) => {
     const response: WebSocketMessage = JSON.parse(message.data);

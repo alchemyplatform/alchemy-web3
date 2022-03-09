@@ -8,7 +8,7 @@ import {
   SingleOrBatchResponse,
 } from "../types";
 import { delay, promisify } from "../util/promises";
-import { AlchemySendFunction } from "./alchemySend";
+import { AlchemySendJsonRpcFunction } from "./alchemySend";
 
 const ALCHEMY_DISALLOWED_METHODS: string[] = [
   "eth_accounts",
@@ -19,29 +19,29 @@ const ALCHEMY_DISALLOWED_METHODS: string[] = [
   "personal_sign",
 ];
 
-export interface PayloadSender {
-  sendPayload: SendPayloadFunction;
+export interface JsonRpcPayloadSender {
+  sendJsonRpcPayload: SendJsonRpcPayloadFunction;
   setWriteProvider(writeProvider: Provider | null | undefined): void;
 }
 
-export interface SendPayloadFunction {
+export interface SendJsonRpcPayloadFunction {
   (payload: JsonRpcRequest): Promise<JsonRpcResponse>;
   (payload: SingleOrBatchRequest): Promise<SingleOrBatchResponse>;
 }
 
-export function makePayloadSender(
-  alchemySend: AlchemySendFunction,
+export function makeJsonRpcPayloadSender(
+  alchemySendJsonRpc: AlchemySendJsonRpcFunction,
   config: FullConfig,
-): PayloadSender {
+): JsonRpcPayloadSender {
   let currentWriteProvider = config.writeProvider;
 
-  const sendPayload = (
+  const sendJsonRpcPayload = (
     payload: SingleOrBatchRequest,
   ): Promise<SingleOrBatchResponse> => {
     const disallowedMethod = getDisallowedMethod(payload);
     if (!disallowedMethod) {
       try {
-        return sendWithRetries(payload, alchemySend, config);
+        return sendJsonRpcWithRetries(payload, alchemySendJsonRpc, config);
       } catch (alchemyError) {
         // Fallback to write provider, but if both fail throw the error from
         // Alchemy.
@@ -49,7 +49,7 @@ export function makePayloadSender(
           throw alchemyError;
         }
         try {
-          return sendWithProvider(currentWriteProvider, payload);
+          return sendJsonRpcWithProvider(currentWriteProvider, payload);
         } catch {
           throw alchemyError;
         }
@@ -60,7 +60,7 @@ export function makePayloadSender(
           `No provider available for method "${disallowedMethod}"`,
         );
       }
-      return sendWithProvider(currentWriteProvider, payload);
+      return sendJsonRpcWithProvider(currentWriteProvider, payload);
     }
   };
 
@@ -68,17 +68,19 @@ export function makePayloadSender(
     currentWriteProvider = writeProvider ?? null;
   }
 
-  return { sendPayload: sendPayload as SendPayloadFunction, setWriteProvider };
+  return {
+    sendJsonRpcPayload: sendJsonRpcPayload as SendJsonRpcPayloadFunction,
+    setWriteProvider,
+  };
 }
 
-function sendWithProvider(
+function sendJsonRpcWithProvider(
   provider: Provider,
   payload: SingleOrBatchRequest,
 ): Promise<SingleOrBatchResponse> {
   const anyProvider: any = provider;
-  const sendMethod = (anyProvider.sendAsync
-    ? anyProvider.sendAsync
-    : anyProvider.send
+  const sendMethod = (
+    anyProvider.sendAsync ? anyProvider.sendAsync : anyProvider.send
   ).bind(anyProvider);
   return promisify((callback) => sendMethod(payload, callback));
 }
@@ -93,13 +95,13 @@ function getDisallowedMethod(
   return disallowedRequest && disallowedRequest.method;
 }
 
-async function sendWithRetries(
+async function sendJsonRpcWithRetries(
   payload: SingleOrBatchRequest,
-  alchemySend: AlchemySendFunction,
+  alchemySendJsonRpc: AlchemySendJsonRpcFunction,
   { maxRetries, retryInterval, retryJitter }: FullConfig,
 ): Promise<SingleOrBatchResponse> {
   for (let i = 0; i < maxRetries + 1; i++) {
-    const result = await alchemySend(payload);
+    const result = await alchemySendJsonRpc(payload);
     switch (result.type) {
       case "jsonrpc":
         return result.response;

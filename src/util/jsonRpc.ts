@@ -2,14 +2,17 @@ import {
   JsonRpcId,
   JsonRpcRequest,
   JsonRpcResponse,
-  SendFunction,
+  SendJsonRpcFunction,
 } from "../types";
-import { SendPayloadFunction } from "../web3-adapter/sendPayload";
+import { SendJsonRpcPayloadFunction } from "../web3-adapter/sendJsonRpcPayload";
 
-export type PayloadFactory = (method: string, params?: any[]) => JsonRpcRequest;
+export type JsonRpcPayloadFactory = (
+  method: string,
+  params?: any[],
+) => JsonRpcRequest;
 
 export interface JsonRpcSenders {
-  send: SendFunction;
+  send: SendJsonRpcFunction;
   sendBatch(parts: BatchPart[]): Promise<any[]>;
 }
 
@@ -18,7 +21,7 @@ export interface BatchPart {
   params?: any;
 }
 
-export function makePayloadFactory(): PayloadFactory {
+export function makeJsonRpcPayloadFactory(): JsonRpcPayloadFactory {
   let nextId = 0;
   return (method, params) => ({
     method,
@@ -28,12 +31,14 @@ export function makePayloadFactory(): PayloadFactory {
   });
 }
 
-export function makeSenders(
-  sendPayload: SendPayloadFunction,
-  makePayload: PayloadFactory,
+export function makeJsonRpcSenders(
+  sendJsonRpcPayload: SendJsonRpcPayloadFunction,
+  makeJsonRpcPayload: JsonRpcPayloadFactory,
 ): JsonRpcSenders {
-  const send: SendFunction = async (method, params) => {
-    const response = await sendPayload(makePayload(method, params));
+  const send: SendJsonRpcFunction = async (method, params) => {
+    const response = await sendJsonRpcPayload(
+      makeJsonRpcPayload(method, params),
+    );
     if (response.error) {
       throw new Error(response.error.message);
     }
@@ -42,9 +47,9 @@ export function makeSenders(
 
   async function sendBatch(parts: BatchPart[]): Promise<any[]> {
     const payload = parts.map(({ method, params }) =>
-      makePayload(method, params),
+      makeJsonRpcPayload(method, params),
     );
-    const response = await sendPayload(payload);
+    const response = await sendJsonRpcPayload(payload);
     if (!Array.isArray(response)) {
       const message = response.error
         ? response.error.message

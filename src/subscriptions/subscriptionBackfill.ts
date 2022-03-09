@@ -65,7 +65,7 @@ export type Backfiller = ReturnType<typeof makeBackfiller>;
  */
 const MAX_BACKFILL_BLOCKS = 120;
 
-export function makeBackfiller(senders: JsonRpcSenders) {
+export function makeBackfiller(jsonRpcSenders: JsonRpcSenders) {
   return { getNewHeadsBackfill, getLogsBackfill };
 
   async function getNewHeadsBackfill(
@@ -136,12 +136,15 @@ export function makeBackfiller(senders: JsonRpcSenders) {
         params: [toHex(i), false],
       });
     }
-    const heads = await senders.sendBatch(batchParts);
+    const heads = await jsonRpcSenders.sendBatch(batchParts);
     return heads.map(toNewHeadsEvent);
   }
 
   async function getBlockByNumber(blockNumber: number): Promise<BlockHead> {
-    return senders.send("eth_getBlockByNumber", [toHex(blockNumber), false]);
+    return jsonRpcSenders.send("eth_getBlockByNumber", [
+      toHex(blockNumber),
+      false,
+    ]);
   }
 
   async function getLogsBackfill(
@@ -215,11 +218,11 @@ export function makeBackfiller(senders: JsonRpcSenders) {
       fromBlock: toHex(fromBlockInclusive),
       toBlock: toHex(toBlockExclusive - 1),
     };
-    return senders.send("eth_getLogs", [rangeFilter]);
+    return jsonRpcSenders.send("eth_getLogs", [rangeFilter]);
   }
 
   async function getBlockNumber(): Promise<number> {
-    const blockNumberHex: string = await senders.send("eth_blockNumber");
+    const blockNumberHex: string = await jsonRpcSenders.send("eth_blockNumber");
     return fromHex(blockNumberHex);
   }
 }

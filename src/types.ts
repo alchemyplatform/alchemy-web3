@@ -78,7 +78,10 @@ export interface LegacyProvider {
 
 export type Web3Callback<T> = (error: Error | null, result?: T) => void;
 
-export type SendFunction = (method: string, params?: any[]) => Promise<any>;
+export type SendJsonRpcFunction = (
+  method: string,
+  params?: any[],
+) => Promise<any>;
 
 export interface TransactionsOptions {
   address?: string;

@@ -301,7 +301,7 @@ Returns token balances for a specific address given a list of contracts.
 **Parameters:**
 
 1. `address`: The address for which token balances will be checked.
-2. `contractAddresses`: An array of contract addresses.
+2. `contractAddresses`: An optional array of contract addresses. Not specifying this will return all token balances. 
 
 **Returns:**
 
@@ -331,6 +331,56 @@ An object with the following fields:
 - `decimals`: The token's decimals. `null` if not defined in the contract and not available from other sources.
 - `logo`: URL of the token's logo image. `null` if not available.
 
+### `web3.alchemy.getNfts({owner, pageKey, contractAddresses})`
+
+**Parameters:**
+
+An object with the following fields:
+
+- `owner`: The address that you want to fetch NFTs for.
+- `pageKey`: (Optional) A key to fetch the next page of results.
+- `contractAddresses`: (Optional) An array of contract addresses to filter the owner's results to.
+- `withMetadata`: (Optional) If `false`, the returned NFTs will omit metadata. Defaults to `true`.
+
+**Returns:**
+
+When metadata is included, the returned object has the following fields:
+
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+    - `title`: The title of the NFT, or an empty string if no title is available.
+    - `description`: The descriptions of the NFT, or an empty string if no description is available.
+    - `tokenUri`: (Optional)
+        - `raw`: Uri representing the location of the NFT's original metadata blob. This is a backup for you to parse
+          when the `metadata` field is not automatically populated.
+        - `gateway`: Public gateway uri for the raw uri.
+    - `media`: (Optional) An array of objects with the following structure.
+        - `uri`: A `tokenUri` as described above.
+    - `metadata`: (Optional)
+        - `image`: (Optional) A uri string that should be usable in an <image> tag.
+        - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with
+          unknown keys and values, as they depend directly on the contract.
+    - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
+- `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
+- `totalCount`: The total number of NFTs in the result set.
+
+If metadata is omitted, an object with the following fields is returned:
+
+- `ownedNfts`: An array of NFT objects that the address owns. Each NFT object has the following structure.
+    - `contract`:
+        - `address`: The address of the contract or collection that the NFT belongs to.
+    - `id`:
+        - `tokenId`: Raw token id.
+        - `tokenMetadata`:
+            - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+- `pageKey`: (Optional) A key to fetch the next page of results, if applicable.
+- `totalCount`: The total number of NFTs in the result set.
+
 ### `web3.alchemy.getNftMetadata({contractAddress, tokenId, tokenType})`
 
 **Parameters:**
@@ -339,23 +389,48 @@ An object with the following fields:
 
 - `contract`: The address of the token contract.
 - `tokenId`: Raw token id (hex string).
-- `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+- `tokenType`: (Optional) The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
 
 **Returns:**
 
 An object with the following fields:
 
-- `contractAddress`: The hex string of the contract addresses for "token" transfers.
-- `tokenId`: Raw token id (hex string).
-- `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
-- `rawMetadataUri`: Raw URI path of the token metadata. (Example: ipfs://QmX...swG/abc.json)
-- `alchemyMetadataUri`: The URI of the token metadata on a default gateway. (Example: https://ipfs.io/ipfs/QmX...swG/abc.json)
-- `rawImageUri`: Raw URI path of the image. (Example ipfs://QmX....swG/abc.png)
-- `alchemyImageUri`: The URI path of the image on a default gateway. (Example: https://ipfs.io/ipfs/QmX....swG/abc.png)
-- `name`: Name of the token as specified in the metadata.
-- `description`: Description of the token as specified in the metadata.
-- `attributes`: Attributes of the token as specified in the metadata. This is usually an array that takes the shape of string -> object. (Example: [{"key1" : "Value1", "key2" : {"subkey1": "subvalue1"}, "key3": ["value2","value3"]}])
-- `rawMetadata`: Raw value of the token metadata.
+- `contract`:
+  - `address`: The hex string of the contract addresses for "token" transfers.
+- `id`:
+  - `tokenId`: Raw token id.
+  - `tokenMetadata`:
+    - `tokenType`: The type of token being sent as part of the request (Can be one of ["erc721" | "erc1155"]).
+- `title`: Name of NFT.
+- `description`: A brief description of the NFT taken from the contract metadata.
+- `tokenUri`: (Optional)
+  - `raw`: Uri representing the location of the NFT's original metadata blob. This is a backup for you to parse when the `metadata` field is not automatically populated.
+  - `gateway`: Public gateway uri for the raw uri.
+- `media`: (Optional) An array of objects with the following structure.
+  - `uri`: A `tokenUri` as described above.
+- `metadata`: (Optional)
+  - `image`: (Optional) A uri string that should be usable in an <image> tag.
+  - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with unknown keys and values, as they depend directly on the contract.
+- `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
+
+
+### `web3.alchemy.getTransactionReceipts({blockNumber | blockHash})`
+
+Fetches all transaction receipts for a block number or a block hash.
+
+**Parameters:**
+- blockNumber - (hex) The block number to get transaction receipts for
+- blockHash - The block hash to get transaction receipts for
+
+Note that either `blockNumber` or `blockHash` can be set.
+
+**Returns:**
+- `{receipts: TransactionReceipt[]} | null` - An array of transaction receipts, or `null` if the block number or hash
+is not found.
+
+The returned object is a list of transaction receipts for each transaction in this block. See 
+[eth_getTransactionReceipt](https://docs.alchemy.com/alchemy/apis/ethereum/eth_gettransactionreceipt#returns)
+  for the payload of an individual transaction receipt.
 
 ### `web3.eth.subscribe("alchemy_fullPendingTransactions")`
 

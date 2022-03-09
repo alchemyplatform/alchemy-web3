@@ -79,13 +79,20 @@ export interface AssetTransfersResult {
   rawContract: RawContract;
 }
 
-export interface NftMetadata {
+export interface NftMetadata extends Record<string, any> {
+  name?: string;
+  description?: string;
   image?: string;
   attributes?: Array<Record<string, any>>;
 }
 
+export interface TokenUri {
+  raw: string;
+  gateway: string;
+}
+
 export interface NftMedia {
-  uri?: string;
+  uri?: TokenUri;
 }
 
 export interface NftContract {
@@ -107,17 +114,34 @@ export interface GetNftMetadataParams {
   tokenType?: "erc721" | "erc1155";
 }
 
-export interface GetNftMetadataResponse {
+export type GetNftMetadataResponse = NftMetadata;
+
+export interface Nft extends BaseNft {
+  title: string;
+  description: string;
+  tokenUri?: TokenUri;
+  media?: NftMedia[];
+  metadata?: NftMetadata;
+  timeLastUpdated: string;
+}
+
+export interface BaseNft {
   contract: NftContract;
   id: NftId;
-  media?: NftMedia;
-  metadata?: NftMetadata;
 }
 
 export interface GetNftsParams {
   owner: string;
   pageKey?: string;
   contractAddresses?: string[];
+  withMetadata?: boolean;
+}
+
+export interface GetNftsParamsWithoutMetadata {
+  owner: string;
+  pageKey?: string;
+  contractAddresses?: string[];
+  withMetadata: false;
 }
 
 export interface GetNftsResponse {
@@ -126,9 +150,54 @@ export interface GetNftsResponse {
   totalCount: number;
 }
 
-export interface Nft {
-  contract: NftContract;
-  id: NftId;
+export interface GetNftsResponseWithoutMetadata {
+  ownedNfts: BaseNft[];
+  pageKey?: string;
+  totalCount: number;
+}
+
+export interface TransactionReceiptsBlockNumber {
+  blockNumber: string;
+}
+export interface TransactionReceiptsBlockHash {
+  blockHash: string;
+}
+export type TransactionReceiptsParams =
+  | TransactionReceiptsBlockNumber
+  | TransactionReceiptsBlockHash;
+
+export interface TransactionReceiptsResponse {
+  receipts: TransactionReceipt[] | null;
+}
+
+export interface TransactionReceipt {
+  transactionHash: string;
+  blockHash: string;
+  blockNumber: string;
+  contractAddress: string | null;
+  cumulativeGasUsed: string;
+  effectiveGasPrice: string;
+  from: string;
+  gasUsed: string;
+  logs: Log[];
+  logsBloom: string;
+  root?: string;
+  status?: string;
+  to: string;
+  transactionIndex: string;
+  type: string;
+}
+
+export interface Log {
+  blockHash: string;
+  address: string;
+  logIndex: string;
+  data: string;
+  removed: boolean;
+  topics: string[];
+  blockNumber: string;
+  transactionHash: string;
+  transactionIndex: string;
 }
 
 export interface ERC1155Metadata {

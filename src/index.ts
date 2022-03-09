@@ -10,11 +10,15 @@ import {
   GetNftMetadataParams,
   GetNftMetadataResponse,
   GetNftsParams,
+  GetNftsParamsWithoutMetadata,
   GetNftsResponse,
+  GetNftsResponseWithoutMetadata,
   TokenAllowanceParams,
   TokenAllowanceResponse,
   TokenBalancesResponse,
   TokenMetadataResponse,
+  TransactionReceiptsParams,
+  TransactionReceiptsResponse,
 } from "./alchemy-apis/types";
 import {
   AlchemyWeb3Config,
@@ -32,9 +36,12 @@ import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
 import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
+export * from "./alchemy-apis/types";
+
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL = 1000;
 const DEFAULT_RETRY_JITTER = 250;
+const DEFAULT_CONTRACT_ADDRESS = "DEFAULT_TOKENS";
 
 export interface AlchemyWeb3 extends Web3 {
   alchemy: AlchemyMethods;
@@ -49,7 +56,7 @@ export interface AlchemyMethods {
   ): Promise<TokenAllowanceResponse>;
   getTokenBalances(
     address: string,
-    contractAddresses: string[],
+    contractAddresses?: string[],
     callback?: Web3Callback<TokenBalancesResponse>,
   ): Promise<TokenBalancesResponse>;
   getTokenMetadata(
@@ -65,9 +72,17 @@ export interface AlchemyMethods {
     callback?: Web3Callback<GetNftMetadataResponse>,
   ): Promise<GetNftMetadataResponse>;
   getNfts(
-    params: GetNftsParams,
-    callback?: Web3Callback<GetNftsResponse>,
-  ): Promise<GetNftsResponse>;
+    params: GetNftsParams | GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponse | GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponse | GetNftsResponseWithoutMetadata>;
+  getNfts(
+    params: GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponseWithoutMetadata>;
+  getTransactionReceipts(
+    params: TransactionReceiptsParams,
+    callback?: Web3Callback<TransactionReceiptsResponse>,
+  ): Promise<TransactionReceiptsResponse>;
 }
 
 /**
@@ -149,7 +164,7 @@ export function createAlchemyWeb3(
         jsonRpcSenders,
         callback,
         method: "alchemy_getTokenBalances",
-        params: [address, contractAddresses],
+        params: [address, contractAddresses || DEFAULT_CONTRACT_ADDRESS],
         processResponse: processTokenBalanceResponse,
       }),
     getTokenMetadata: (address, callback) =>
@@ -185,12 +200,19 @@ export function createAlchemyWeb3(
         params,
         path: "/v1/getNFTMetadata/",
       }),
-    getNfts: (params: GetNftsParams, callback) =>
+    getNfts: (params: GetNftsParams | GetNftsParamsWithoutMetadata, callback) =>
       callAlchemyRestEndpoint({
         restSender,
         callback,
         params,
         path: "/v1/getNFTs/",
+      }),
+    getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>
+      callAlchemyJsonRpcMethod({
+        jsonRpcSenders,
+        callback,
+        method: "alchemy_getTransactionReceipts",
+        params: [params],
       }),
   };
   patchSubscriptions(alchemyWeb3);
@@ -251,8 +273,9 @@ function callAlchemyRestEndpoint<T>({
   callback = noop,
   processResponse = identity,
 }: CallAlchemyRestEndpoint<T>): Promise<T> {
+  const fixedParams = fixArrayQueryParams(params);
   const promise = (async () => {
-    const result = await restSender.sendRestPayload(path, params);
+    const result = await restSender.sendRestPayload(path, fixedParams);
     return processResponse(result);
   })();
   callWhenDone(promise, callback);
@@ -367,4 +390,30 @@ function noop(): void {
 
 function identity<T>(x: T): T {
   return x;
+}
+
+/**
+ * Alchemy's APIs receive multivalued params via keys with `[]` at the end.
+ * Update any query params whose values are arrays to match this convention.
+ */
+function fixArrayQueryParams(params: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  Object.keys(params).forEach((key) => {
+    const value = params[key];
+    const fixedKey = Array.isArray(value) ? toArrayKey(key) : key;
+    result[fixedKey] = value;
+  });
+  return result;
+}
+
+function toArrayKey(key: string): string {
+  return endsWith(key, "[]") ? key : `${key}[]`;
+}
+
+/**
+ * Like `String#endsWith`, for older environments.
+ */
+function endsWith(s: string, ending: string): boolean {
+  const index = s.lastIndexOf(ending);
+  return index >= 0 && index === s.length - ending.length;
 }

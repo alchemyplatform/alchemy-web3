@@ -34,7 +34,7 @@ export function makeJsonRpcHttpSender(url: string): AlchemySendJsonRpcFunction {
         return {
           status,
           type: "networkError",
-          message: (await response.json()).message,
+          message: (await response.json()).error?.message,
         };
     }
   };

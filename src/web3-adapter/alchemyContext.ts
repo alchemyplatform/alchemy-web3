@@ -91,5 +91,5 @@ function isNodeEnvironment(): boolean {
 }
 
 function isAlchemyUrl(url: string): boolean {
-  return url.indexOf("alchemyapi.io") >= 0;
+  return url.indexOf("alchemy.com") >= 0 || url.indexOf("alchemyapi.io") >= 0;
 }

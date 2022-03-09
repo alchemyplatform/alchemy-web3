@@ -1,4 +1,5 @@
 import fetchPonyfill from "fetch-ponyfill";
+import URI from "urijs";
 import { FullConfig } from "../types";
 import { delay } from "../util/promises";
 
@@ -29,16 +30,16 @@ export function makeRestPayloadSender({
     error =
       "Alchemy specific rest endpoints are not available with a non Alchemy provider.";
   }
-  if (url.includes("alchemyapi.io")) {
+  if (url.includes("alchemyapi.io") && !url.includes("eth-")) {
     error =
-      "Alchemy specific rest endpoints are not available with our legacy endpoints on alchemyapi.io, please switch over to alchemy.com";
+      "Alchemy specific rest endpoints on L2 networks are not available with our legacy endpoints on alchemyapi.io. Please switch over to alchemy.com";
   }
 
-  const urlObject = new URL(url);
-  const origin = urlObject.origin;
-  const apiKey = urlObject.pathname.substring(
-    urlObject.pathname.lastIndexOf("/") + 1,
-  );
+  // Don't use the native `URL` class for this. It doesn't work in React Native.
+  const urlObject = new URI(url);
+  const origin = urlObject.origin();
+  const pathname = urlObject.path();
+  const apiKey = pathname.substring(pathname.lastIndexOf("/") + 1);
 
   const { fetch } = fetchPonyfill();
 
@@ -51,11 +52,12 @@ export function makeRestPayloadSender({
     }
     const { maxRetries, retryInterval, retryJitter } = config;
     if (origin && apiKey) {
-      const endpoint = new URL(origin);
-      endpoint.search = new URLSearchParams(payload).toString();
-      endpoint.pathname = apiKey + path;
+      const endpoint = new URI(origin)
+        .search(payload)
+        .path(apiKey + path)
+        .toString();
       for (let i = 0; i < maxRetries + 1; i++) {
-        const response = await fetch(endpoint.href);
+        const response = await fetch(endpoint);
         const { status } = response;
         switch (status) {
           case 200:

@@ -5,7 +5,7 @@ jest.mock("../src/web3-adapter/alchemyContext", () => {
     makeAlchemyContext: () => {
       return {
         provider: {},
-        senders: [],
+        jsonRpcSenders: [],
         setWriteProvider: {},
       };
     },

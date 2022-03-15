@@ -16,8 +16,9 @@ const ALCHEMY_DISALLOWED_METHODS: string[] = [
   "eth_sign",
   "eth_signTypedData_v3",
   "eth_signTypedData",
-  "personal_sign",
 ];
+
+const ALCHEMY_DISALLOWED_PREFIXES: string[] = ["personal"];
 
 export interface JsonRpcPayloadSender {
   sendJsonRpcPayload: SendJsonRpcPayloadFunction;
@@ -89,9 +90,17 @@ function getDisallowedMethod(
   payload: SingleOrBatchRequest,
 ): string | undefined {
   const payloads = Array.isArray(payload) ? payload : [payload];
+
+  // Check if the payload method is a disallowed method or starts with a
+  // disallowed prefix.
   const disallowedRequest =
-    payloads.find((p) => ALCHEMY_DISALLOWED_METHODS.indexOf(p.method) >= 0) ||
-    undefined;
+    payloads.find(
+      (p) =>
+        ALCHEMY_DISALLOWED_METHODS.indexOf(p.method) >= 0 ||
+        ALCHEMY_DISALLOWED_PREFIXES.some((prefix) =>
+          p.method.startsWith(prefix),
+        ),
+    ) || undefined;
   return disallowedRequest && disallowedRequest.method;
 }
 

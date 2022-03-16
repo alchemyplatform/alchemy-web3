@@ -123,6 +123,7 @@ export interface Nft extends BaseNft {
   media?: NftMedia[];
   metadata?: NftMetadata;
   timeLastUpdated: string;
+  error?: string;
 }
 
 export interface BaseNft {

@@ -72,13 +72,13 @@ export interface AlchemyMethods {
     callback?: Web3Callback<GetNftMetadataResponse>,
   ): Promise<GetNftMetadataResponse>;
   getNfts(
-    params: GetNftsParams | GetNftsParamsWithoutMetadata,
-    callback?: Web3Callback<GetNftsResponse | GetNftsResponseWithoutMetadata>,
-  ): Promise<GetNftsResponse | GetNftsResponseWithoutMetadata>;
-  getNfts(
     params: GetNftsParamsWithoutMetadata,
     callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
   ): Promise<GetNftsResponseWithoutMetadata>;
+  getNfts(
+    params: GetNftsParams,
+    callback?: Web3Callback<GetNftsResponse>,
+  ): Promise<GetNftsResponse>;
   getTransactionReceipts(
     params: TransactionReceiptsParams,
     callback?: Web3Callback<TransactionReceiptsResponse>,
@@ -151,6 +151,30 @@ export function createAlchemyWeb3(
     );
   };
   alchemyWeb3.setWriteProvider = setWriteProvider;
+
+  // Define function separately in order to allow for overloads.
+  function getNfts(
+    params: GetNftsParamsWithoutMetadata,
+    callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
+  ): Promise<GetNftsResponseWithoutMetadata>;
+  function getNfts(
+    params: GetNftsParams,
+    callback?: Web3Callback<GetNftsResponse>,
+  ): Promise<GetNftsResponse>;
+  function getNfts(
+    params: GetNftsParams | GetNftsParamsWithoutMetadata,
+    callback?:
+      | Web3Callback<GetNftsResponseWithoutMetadata>
+      | Web3Callback<GetNftsResponse>,
+  ): Promise<GetNftsResponse | GetNftsResponseWithoutMetadata> {
+    return callAlchemyRestEndpoint({
+      restSender,
+      callback,
+      params,
+      path: "/v1/getNFTs/",
+    });
+  }
+
   alchemyWeb3.alchemy = {
     getTokenAllowance: (params: TokenAllowanceParams, callback) =>
       callAlchemyJsonRpcMethod({
@@ -200,13 +224,7 @@ export function createAlchemyWeb3(
         params,
         path: "/v1/getNFTMetadata/",
       }),
-    getNfts: (params: GetNftsParams | GetNftsParamsWithoutMetadata, callback) =>
-      callAlchemyRestEndpoint({
-        restSender,
-        callback,
-        params,
-        path: "/v1/getNFTs/",
-      }),
+    getNfts,
     getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>
       callAlchemyJsonRpcMethod({
         jsonRpcSenders,

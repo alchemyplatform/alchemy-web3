@@ -10,6 +10,10 @@ interface PatchParams {
 
 const MethodFn: any = Method;
 
+/**
+ * Private method to enable adding custom RPC calls to the web3 object. This
+ * allows the addition of custom endpoints to the web3 object.
+ */
 export function patchEnableCustomRPC(web3: any): void {
   web3.eth.customRPC = function (opts: PatchParams) {
     const newMethod = new MethodFn({

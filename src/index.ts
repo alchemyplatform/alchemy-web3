@@ -32,7 +32,6 @@ import { JsonRpcSenders } from "./util/jsonRpc";
 import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
 import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
-import { patchEthFeeHistoryMethod } from "./web3-adapter/eth_feeHistory";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
 import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
@@ -129,6 +128,9 @@ export interface AlchemyEth extends Eth {
       item: Log | Syncing | BlockHeader | string | Transaction,
     ) => void,
   ): Subscription<Log | BlockHeader | Syncing | string>;
+  getMaxPriorityFeePerGas(
+    callback?: (error: Error, fee: string) => void,
+  ): Promise<string>;
 }
 
 interface EthereumWindow extends Window {
@@ -235,7 +237,6 @@ export function createAlchemyWeb3(
   };
   patchSubscriptions(alchemyWeb3);
   patchEnableCustomRPC(alchemyWeb3);
-  patchEthFeeHistoryMethod(alchemyWeb3);
   patchEthMaxPriorityFeePerGasMethod(alchemyWeb3);
   return alchemyWeb3;
 }
@@ -317,7 +318,9 @@ function processTokenBalanceResponse(
 
 /**
  * Updates Web3's internal subscription architecture to also handle Alchemy
- * specific subscriptions.
+ * specific subscriptions. This is to handle alternate namings of the existing
+ * subscription endpoints, but the officially documented interfaces are
+ * specified in the AlchemyEth interface.
  */
 function patchSubscriptions(web3: Web3): void {
   const { eth } = web3;

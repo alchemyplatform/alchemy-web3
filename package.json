@@ -72,14 +72,14 @@
     "sturdy-websocket": "^0.2.1",
     "tslib": "^2.1.0",
     "urijs": "^1.19.7",
-    "web3": "1.6.0",
-    "web3-core": "1.6.0",
-    "web3-core-helpers": "1.6.0",
-    "web3-core-method": "1.6.0",
-    "web3-core-subscriptions": "1.6.0",
-    "web3-eth": "1.6.0",
-    "web3-eth-abi": "1.6.0",
-    "web3-utils": "1.6.0",
+    "web3": "1.7.1",
+    "web3-core": "1.7.1",
+    "web3-core-helpers": "1.7.1",
+    "web3-core-method": "1.7.1",
+    "web3-core-subscriptions": "1.7.1",
+    "web3-eth": "1.7.1",
+    "web3-eth-abi": "1.7.1",
+    "web3-utils": "1.7.1",
     "websocket": "^1.0.28"
   }
 }

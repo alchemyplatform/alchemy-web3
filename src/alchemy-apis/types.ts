@@ -114,7 +114,7 @@ export interface GetNftMetadataParams {
   tokenType?: "erc721" | "erc1155";
 }
 
-export type GetNftMetadataResponse = NftMetadata;
+export type GetNftMetadataResponse = Nft;
 
 export interface Nft extends BaseNft {
   title: string;

@@ -243,11 +243,18 @@ export function createAlchemyWeb3(
 
 function fillInConfigDefaults({
   writeProvider = getWindowProvider(),
+  jsonRpcSenderMiddlewares = [],
   maxRetries = DEFAULT_MAX_RETRIES,
   retryInterval = DEFAULT_RETRY_INTERVAL,
   retryJitter = DEFAULT_RETRY_JITTER,
 }: AlchemyWeb3Config = {}): FullConfig {
-  return { writeProvider, maxRetries, retryInterval, retryJitter };
+  return {
+    writeProvider,
+    jsonRpcSenderMiddlewares,
+    maxRetries,
+    retryInterval,
+    retryJitter,
+  };
 }
 
 function getWindowProvider(): Provider | null {

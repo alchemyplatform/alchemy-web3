@@ -3,6 +3,7 @@ import {
   FullConfig,
   JsonRpcRequest,
   JsonRpcResponse,
+  JsonRpcSenderMiddleware,
   Provider,
   SingleOrBatchRequest,
   SingleOrBatchResponse,
@@ -34,11 +35,12 @@ export function makeJsonRpcPayloadSender(
   alchemySendJsonRpc: AlchemySendJsonRpcFunction,
   config: FullConfig,
 ): JsonRpcPayloadSender {
-  let currentWriteProvider = config.writeProvider;
+  // Copy middlewares from config.
+  const middlewares: JsonRpcSenderMiddleware[] = [];
+  config.jsonRpcSenderMiddlewares.forEach((m) => middlewares.push(m));
 
-  const sendJsonRpcPayload = (
-    payload: SingleOrBatchRequest,
-  ): Promise<SingleOrBatchResponse> => {
+  let currentWriteProvider = config.writeProvider;
+  middlewares.push((payload) => {
     const disallowedMethod = getDisallowedMethod(payload);
     if (!disallowedMethod) {
       try {
@@ -63,6 +65,14 @@ export function makeJsonRpcPayloadSender(
       }
       return sendJsonRpcWithProvider(currentWriteProvider, payload);
     }
+  });
+
+  const sendJsonRpcPayload = (
+    payload: SingleOrBatchRequest,
+  ): Promise<SingleOrBatchResponse> => {
+    let i = 0;
+    const next = () => middlewares[i++](payload, next);
+    return next();
   };
 
   function setWriteProvider(writeProvider: Provider | null | undefined) {

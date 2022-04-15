@@ -129,6 +129,7 @@ export interface Nft extends BaseNft {
 export interface BaseNft {
   contract: NftContract;
   id: NftId;
+  balance?: string;
 }
 
 export interface GetNftsParams {

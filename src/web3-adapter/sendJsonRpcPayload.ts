@@ -71,8 +71,18 @@ export function makeJsonRpcPayloadSender(
     payload: SingleOrBatchRequest,
   ): Promise<SingleOrBatchResponse> => {
     let i = 0;
-    const next = () => middlewares[i++](payload, next);
-    return next();
+    const getNext = () => {
+      let called = false;
+      const middleware = middlewares[i++];
+      return () => {
+        if (called) {
+          throw new Error(`Cannot call "next" in a middleware twice`);
+        }
+        called = true;
+        return middleware(payload, getNext());
+      };
+    };
+    return getNext()();
   };
 
   function setWriteProvider(writeProvider: Provider | null | undefined) {

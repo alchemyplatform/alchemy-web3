@@ -53,6 +53,7 @@ export function isSubscriptionEvent(
 
 export interface AlchemyWeb3Config {
   writeProvider?: Provider | null;
+  jsonRpcSenderMiddlewares?: JsonRpcSenderMiddleware[];
   maxRetries?: number;
   retryInterval?: number;
   retryJitter?: number;
@@ -86,3 +87,8 @@ export type SendJsonRpcFunction = (
 export interface TransactionsOptions {
   address?: string;
 }
+
+export type JsonRpcSenderMiddleware = (
+  req: SingleOrBatchRequest,
+  next: () => Promise<SingleOrBatchResponse>,
+) => Promise<SingleOrBatchResponse>;

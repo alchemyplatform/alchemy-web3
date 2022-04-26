@@ -136,21 +136,24 @@ export function makeBackfiller(jsonRpcSenders: JsonRpcSenders) {
       return [];
     }
     let batchParts: BatchPart[] = [];
-    const allHeads: NewHeadsEvent[] = [];
+    const headEvents: Array<Promise<BlockHead[]>> = [];
     for (let i = fromBlockInclusive; i < toBlockExclusive; i++) {
       batchParts.push({
         method: "eth_getBlockByNumber",
         params: [toHex(i), false],
       });
       if (batchParts.length % MAX_BATCH_SIZE === 0) {
-        const heads = await jsonRpcSenders.sendBatch(batchParts);
-        allHeads.concat(heads.map(toNewHeadsEvent));
+        headEvents.push(jsonRpcSenders.sendBatch(batchParts));
         batchParts = [];
       }
     }
-    const remainingHeads = await jsonRpcSenders.sendBatch(batchParts);
-    allHeads.concat(remainingHeads.map(toNewHeadsEvent));
-    return allHeads;
+    headEvents.push(jsonRpcSenders.sendBatch(batchParts));
+    const batchedBlockHeads = await Promise.all(headEvents);
+    const blockHeads = batchedBlockHeads.reduce(
+      (acc, batch) => acc.concat(batch),
+      [],
+    );
+    return blockHeads.map(toNewHeadsEvent);
   }
 
   async function getBlockByNumber(blockNumber: number): Promise<BlockHead> {

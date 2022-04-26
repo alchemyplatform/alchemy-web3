@@ -65,6 +65,12 @@ export type Backfiller = ReturnType<typeof makeBackfiller>;
  */
 const MAX_BACKFILL_BLOCKS = 120;
 
+/**
+ * The maximum number of requests that can be included in a single batch request.
+ * This value is enforced by the backend.
+ */
+const MAX_BATCH_SIZE = 10;
+
 export function makeBackfiller(jsonRpcSenders: JsonRpcSenders) {
   return { getNewHeadsBackfill, getLogsBackfill };
 
@@ -129,15 +135,29 @@ export function makeBackfiller(jsonRpcSenders: JsonRpcSenders) {
     if (fromBlockInclusive >= toBlockExclusive) {
       return [];
     }
-    const batchParts: BatchPart[] = [];
+    let batchParts: BatchPart[] = [];
+    const headEventBatches: Array<Promise<BlockHead[]>> = [];
     for (let i = fromBlockInclusive; i < toBlockExclusive; i++) {
       batchParts.push({
         method: "eth_getBlockByNumber",
         params: [toHex(i), false],
       });
+      if (batchParts.length % MAX_BATCH_SIZE === 0) {
+        headEventBatches.push(jsonRpcSenders.sendBatch(batchParts));
+        batchParts = [];
+      }
     }
-    const heads = await jsonRpcSenders.sendBatch(batchParts);
-    return heads.map(toNewHeadsEvent);
+
+    if (batchParts.length > 0) {
+      headEventBatches.push(jsonRpcSenders.sendBatch(batchParts));
+    }
+
+    const batchedBlockHeads = await Promise.all(headEventBatches);
+    const blockHeads = batchedBlockHeads.reduce(
+      (acc, batch) => acc.concat(batch),
+      [],
+    );
+    return blockHeads.map(toNewHeadsEvent);
   }
 
   async function getBlockByNumber(blockNumber: number): Promise<BlockHead> {

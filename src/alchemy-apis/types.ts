@@ -137,6 +137,7 @@ export interface GetNftsParams {
   pageKey?: string;
   contractAddresses?: string[];
   withMetadata?: boolean;
+  filters?: NftFilters[];
 }
 
 export interface GetNftsParamsWithoutMetadata {
@@ -156,6 +157,10 @@ export interface GetNftsResponseWithoutMetadata {
   ownedNfts: BaseNft[];
   pageKey?: string;
   totalCount: number;
+}
+
+export enum NftFilters {
+  SPAM = "SPAM",
 }
 
 export interface TransactionReceiptsBlockNumber {

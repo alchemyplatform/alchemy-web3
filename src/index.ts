@@ -19,6 +19,7 @@ import {
   TokenMetadataResponse,
   TransactionReceiptsParams,
   TransactionReceiptsResponse,
+  PrivateTransactionPreferences,
 } from "./alchemy-apis/types";
 import {
   AlchemyWeb3Config,
@@ -33,6 +34,7 @@ import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
 import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
+import { patchEthPrivateTransactionMethods } from "./web3-adapter/eth_maxPriorityFeePerGas";
 import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
 export * from "./alchemy-apis/types";
@@ -131,6 +133,12 @@ export interface AlchemyEth extends Eth {
   getMaxPriorityFeePerGas(
     callback?: (error: Error, fee: string) => void,
   ): Promise<string>;
+  sendPrivateTransaction(
+    tx: string, maxBlockNumber?: string, preferences?: PrivateTransactionPreferences, callback?: (error: Error, hash: string) => void,
+  ): Promise<string>;
+  cancelPrivateTransaction(
+    txHash: string, callback?: (error: Error, result: boolean) => void,
+  ): Promise<boolean>;
 }
 
 interface EthereumWindow extends Window {
@@ -238,6 +246,7 @@ export function createAlchemyWeb3(
   patchSubscriptions(alchemyWeb3);
   patchEnableCustomRPC(alchemyWeb3);
   patchEthMaxPriorityFeePerGasMethod(alchemyWeb3);
+  patchEthPrivateTransactionMethods(alchemyWeb3);
   return alchemyWeb3;
 }
 

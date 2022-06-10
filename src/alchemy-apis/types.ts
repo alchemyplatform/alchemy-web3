@@ -217,3 +217,7 @@ export interface RawContract {
   address: string | null;
   decimal: string | null;
 }
+
+export interface PrivateTransactionPreferences {
+  fast: boolean | null;
+}

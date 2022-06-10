@@ -13,13 +13,13 @@ import {
   GetNftsParamsWithoutMetadata,
   GetNftsResponse,
   GetNftsResponseWithoutMetadata,
+  PrivateTransactionPreferences,
   TokenAllowanceParams,
   TokenAllowanceResponse,
   TokenBalancesResponse,
   TokenMetadataResponse,
   TransactionReceiptsParams,
   TransactionReceiptsResponse,
-  PrivateTransactionPreferences,
 } from "./alchemy-apis/types";
 import {
   AlchemyWeb3Config,
@@ -34,7 +34,7 @@ import { callWhenDone } from "./util/promises";
 import { makeAlchemyContext } from "./web3-adapter/alchemyContext";
 import { patchEnableCustomRPC } from "./web3-adapter/customRPC";
 import { patchEthMaxPriorityFeePerGasMethod } from "./web3-adapter/eth_maxPriorityFeePerGas";
-import { patchEthPrivateTransactionMethods } from "./web3-adapter/eth_maxPriorityFeePerGas";
+import { patchEthPrivateTransactionMethods } from "./web3-adapter/eth_PrivateTransactions";
 import { RestPayloadSender } from "./web3-adapter/sendRestPayload";
 
 export * from "./alchemy-apis/types";
@@ -134,10 +134,14 @@ export interface AlchemyEth extends Eth {
     callback?: (error: Error, fee: string) => void,
   ): Promise<string>;
   sendPrivateTransaction(
-    tx: string, maxBlockNumber?: string, preferences?: PrivateTransactionPreferences, callback?: (error: Error, hash: string) => void,
+    tx: string,
+    maxBlockNumber?: string,
+    preferences?: PrivateTransactionPreferences,
+    callback?: (error: Error, hash: string) => void,
   ): Promise<string>;
   cancelPrivateTransaction(
-    txHash: string, callback?: (error: Error, result: boolean) => void,
+    txHash: string,
+    callback?: (error: Error, result: boolean) => void,
   ): Promise<boolean>;
 }
 

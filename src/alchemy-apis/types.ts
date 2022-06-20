@@ -91,10 +91,6 @@ export interface TokenUri {
   gateway: string;
 }
 
-export interface NftMedia {
-  uri?: TokenUri;
-}
-
 export interface NftContract {
   address: string;
 }
@@ -120,7 +116,7 @@ export interface Nft extends BaseNft {
   title: string;
   description: string;
   tokenUri?: TokenUri;
-  media?: NftMedia[];
+  media?: TokenUri[];
   metadata?: NftMetadata;
   timeLastUpdated: string;
   error?: string;

@@ -2,7 +2,7 @@ import Web3 from "web3";
 import { Log, LogsOptions, Transaction } from "web3-core";
 import web3CoreSubscriptions, { Subscription } from "web3-core-subscriptions";
 import { BlockHeader, Eth, Syncing } from "web3-eth";
-import { decodeParameter } from "web3-eth-abi";
+import ABIDecoder from "web3-eth-abi";
 import { toHex } from "web3-utils";
 import {
   AssetTransfersParams,
@@ -329,7 +329,10 @@ function processTokenBalanceResponse(
     balance.tokenBalance != null
       ? {
           ...balance,
-          tokenBalance: decodeParameter("uint256", balance.tokenBalance),
+          tokenBalance: ABIDecoder.decodeParameter(
+            "uint256",
+            balance.tokenBalance,
+          ),
         }
       : balance,
   );

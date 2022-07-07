@@ -129,7 +129,7 @@ export interface AlchemyEth extends Eth {
       error: Error,
       item: Log | Syncing | BlockHeader | string | Transaction,
     ) => void,
-  ): Subscription<Log | BlockHeader | Syncing | string>;
+  ): Subscription<Log | BlockHeader | Syncing | string | Transaction>;
   getMaxPriorityFeePerGas(
     callback?: (error: Error, fee: string) => void,
   ): Promise<string>;

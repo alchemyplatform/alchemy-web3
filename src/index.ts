@@ -24,6 +24,8 @@ import {
 import {
   AlchemyWeb3Config,
   FullConfig,
+  PendingTransactionsOptions,
+  PendingTransactionsOptionsHashesOnly,
   Provider,
   TransactionsOptions,
   Web3Callback,
@@ -117,13 +119,24 @@ export interface AlchemyEth extends Eth {
     callback?: (error: Error, transaction: Transaction) => void,
   ): Subscription<Transaction>;
   subscribe(
+    type: "alchemy_pendingTransactions",
+    options?: PendingTransactionsOptionsHashesOnly,
+    callback?: (error: Error, transactionHash: string) => void,
+  ): Subscription<string>;
+  subscribe(
+    type: "alchemy_pendingTransactions",
+    options?: PendingTransactionsOptions,
+    callback?: (error: Error, transaction: Transaction) => void,
+  ): Subscription<Transaction>;
+  subscribe(
     type:
       | "pendingTransactions"
       | "logs"
       | "syncing"
       | "newBlockHeaders"
       | "alchemy_fullPendingTransactions"
-      | "alchemy_filteredFullPendingTransactions",
+      | "alchemy_filteredFullPendingTransactions"
+      | "alchemy_pendingTransactions",
     options?: null | LogsOptions | TransactionsOptions,
     callback?: (
       error: Error,
@@ -353,6 +366,9 @@ function patchSubscriptions(web3: Web3): void {
       type === "alchemy_fullPendingTransactions" ||
       type === "alchemy_newFullPendingTransactions"
     ) {
+      console.warn(
+        "This method is now deprecated. Please use `alchemy_pendingTransactions` instead.",
+      );
       return suppressNoSubscriptionExistsWarning(() =>
         oldSubscribe("alchemy_newFullPendingTransactions" as any, ...rest),
       );
@@ -362,11 +378,20 @@ function patchSubscriptions(web3: Web3): void {
       type === "alchemy_filteredPendingTransactions" ||
       type === "alchemy_filteredFullPendingTransactions"
     ) {
+      console.warn(
+        "This method is now deprecated. Please use `alchemy_pendingTransactions` instead.",
+      );
       return suppressNoSubscriptionExistsWarning(() =>
         oldSubscribe(
           "alchemy_filteredNewFullPendingTransactions" as any,
           ...rest,
         ),
+      );
+    }
+
+    if (type === "alchemy_pendingTransactions") {
+      return suppressNoSubscriptionExistsWarning(() =>
+        oldSubscribe("alchemy_pendingTransactions" as any, ...rest),
       );
     }
     return oldSubscribe(type as any, ...rest);
@@ -408,6 +433,7 @@ subscription.prototype._validateArgs = function (args: any) {
       "alchemy_filteredNewFullPendingTransactions",
       "alchemy_filteredPendingTransactions",
       "alchemy_filteredFullPendingTransactions",
+      "alchemy_pendingTransactions",
     ].includes(this.subscriptionMethod)
   ) {
     // This particular subscription type is allowed to have additional parameters

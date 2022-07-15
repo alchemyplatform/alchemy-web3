@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe("AlchemyWeb3", () => {
   it("suppresses the missing subscription warning for alchemy_ subscriptions", async () => {
-    web3.eth.subscribe("alchemy_fullPendingTransactions");
+    web3.eth.subscribe("alchemy_pendingTransactions");
     expect(consoleWarnMock.mock.calls.length).toEqual(0);
   });
 

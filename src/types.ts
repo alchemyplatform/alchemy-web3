@@ -88,6 +88,18 @@ export interface TransactionsOptions {
   address?: string;
 }
 
+export interface PendingTransactionsOptions {
+  fromAddress?: string | string[];
+  toAddress?: string | string[];
+  hashesOnly?: boolean;
+}
+
+export interface PendingTransactionsOptionsHashesOnly {
+  fromAddress?: string | string[];
+  toAddress?: string | string[];
+  hashesOnly: true;
+}
+
 export type JsonRpcSenderMiddleware = (
   req: SingleOrBatchRequest,
   next: () => Promise<SingleOrBatchResponse>,

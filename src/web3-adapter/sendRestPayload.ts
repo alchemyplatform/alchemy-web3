@@ -15,11 +15,15 @@ export type SendRestPayloadFunction = (
 export interface RestPayloadConfig {
   url: string;
   config: FullConfig;
+  entity?: string;
+  version?: string;
 }
 
 export function makeRestPayloadSender({
   url,
   config,
+  entity = "nft",
+  version = "v2",
 }: RestPayloadConfig): RestPayloadSender {
   // The rest payload sender only works for alchemy.com http endpoints.
   let error: string | undefined;
@@ -54,7 +58,7 @@ export function makeRestPayloadSender({
     if (origin && apiKey) {
       const endpoint = new URI(origin)
         .search(payload)
-        .path(apiKey + path)
+        .path(`/${entity}/${version}/${apiKey}${path}`)
         .toString();
       for (let i = 0; i < maxRetries + 1; i++) {
         const response = await fetch(endpoint);

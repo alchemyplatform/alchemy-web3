@@ -204,7 +204,7 @@ export function createAlchemyWeb3(
       restSender,
       callback,
       params,
-      path: "/v1/getNFTs/",
+      path: "/getNFTs/",
     });
   }
 
@@ -255,14 +255,14 @@ export function createAlchemyWeb3(
         restSender,
         callback,
         params,
-        path: "/v1/getNFTMetadata/",
+        path: "/getNFTMetadata/",
       }),
     getNftContractMetadata: (params: GetNftContractMetadataParams, callback) =>
       callAlchemyRestEndpoint({
         restSender,
         callback,
         params,
-        path: "/v1/getContractMetadata/",
+        path: "/getContractMetadata/",
       }),
     getNfts,
     getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>

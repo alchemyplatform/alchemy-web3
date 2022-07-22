@@ -413,7 +413,7 @@ An object with the following fields:
   - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with unknown keys and values, as they depend directly on the contract.
 - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
 
-### `web3.alchemy.getContractMetadata(contractAddress)`
+### `web3.alchemy.getNftContractMetadata(contractAddress)`
 
 **Parameters:**
 

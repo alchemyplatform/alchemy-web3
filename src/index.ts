@@ -7,6 +7,8 @@ import { toHex } from "web3-utils";
 import {
   AssetTransfersParams,
   AssetTransfersResponse,
+  GetNftContractMetadataParams,
+  GetNftContractMetadataResponse,
   GetNftMetadataParams,
   GetNftMetadataResponse,
   GetNftsParams,
@@ -74,6 +76,10 @@ export interface AlchemyMethods {
     params: GetNftMetadataParams,
     callback?: Web3Callback<GetNftMetadataResponse>,
   ): Promise<GetNftMetadataResponse>;
+  getNftContractMetadata(
+    params: GetNftContractMetadataParams,
+    callback?: Web3Callback<GetNftContractMetadataResponse>,
+  ): Promise<GetNftContractMetadataResponse>;
   getNfts(
     params: GetNftsParamsWithoutMetadata,
     callback?: Web3Callback<GetNftsResponseWithoutMetadata>,
@@ -250,6 +256,13 @@ export function createAlchemyWeb3(
         callback,
         params,
         path: "/v1/getNFTMetadata/",
+      }),
+    getNftContractMetadata: (params: GetNftContractMetadataParams, callback) =>
+      callAlchemyRestEndpoint({
+        restSender,
+        callback,
+        params,
+        path: "/v1/getContractMetadata/",
       }),
     getNfts,
     getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>

@@ -418,6 +418,23 @@ An object with the following fields:
   - `attributes`: (Optional) An array of attributes from the NFT metadata. Each attribute is a dictionary with unknown keys and values, as they depend directly on the contract.
 - `timeLastUpdated`: ISO timestamp of the last cache refresh for the information returned in the metadata field.
 
+### `web3.alchemy.getNftContractMetadata(contractAddress)`
+
+**Parameters:**
+
+- `contractAddress`: The contract address for the NFT collection
+
+**Returns:**
+
+An object with the following fields:
+
+- `address`: The hex string of the contract address for the queried NFT collection
+- `contractMetadata`:
+  - `name`: (string) The NFT contract name .
+  - `symbol`: (string) The NFT contract symbol abbreviation.
+  - `totalSupply`: (string) total number of NFTs in a given NFT collection.
+  - `tokenType`: (string) "erc721" or "erc1155" NFT token type.
+
 ### `web3.alchemy.getTransactionReceipts({blockNumber | blockHash})`
 
 Fetches all transaction receipts for a block number or a block hash.

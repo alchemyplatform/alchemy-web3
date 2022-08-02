@@ -86,6 +86,13 @@ export interface NftMetadata extends Record<string, any> {
   attributes?: Array<Record<string, any>>;
 }
 
+export interface NftContractMetadata extends Record<string, any> {
+  name?: string;
+  symbol?: string;
+  totalSupply?: string;
+  tokenType?: string;
+}
+
 export interface TokenUri {
   raw: string;
   gateway: string;
@@ -93,6 +100,7 @@ export interface TokenUri {
 
 export interface NftContract {
   address: string;
+  contractMetadata?: NftContractMetadata;
 }
 
 export interface NftId {
@@ -110,7 +118,13 @@ export interface GetNftMetadataParams {
   tokenType?: "erc721" | "erc1155";
 }
 
+export interface GetNftContractMetadataParams {
+  contractAddress: string;
+}
+
 export type GetNftMetadataResponse = Nft;
+
+export type GetNftContractMetadataResponse = NftContract;
 
 export interface Nft extends BaseNft {
   title: string;

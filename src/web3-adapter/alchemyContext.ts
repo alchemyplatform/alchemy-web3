@@ -66,7 +66,7 @@ export function makeAlchemyContext(
     return { provider, jsonRpcSenders, restSender, setWriteProvider };
   } else {
     throw new Error(
-      `Alchemy URL protocol must be one of http, https, ws, or wss. Recieved: ${url}`,
+      `Alchemy URL protocol must be one of http, https, ws, or wss. Received: ${url}`,
     );
   }
 }

@@ -3,7 +3,8 @@
 Web3 client extended with Alchemy and browser provider integration.
 
 ## ⚠️ MAINTENANCE MODE ⚠️
-As of July 2022, this repo is now in maintenance mode. The new SDK based on ethers.js is now available on [GitHub](https://github.com/alchemyplatform/alchemy-sdk-js) or [NPM](https://www.npmjs.com/package/alchemy-sdk). It has feature parity with this library as well as better typing, more abstractions, and more documentation. 
+
+As of July 2022, this repo is now in maintenance mode. The new SDK based on ethers.js is now available on [GitHub](https://github.com/alchemyplatform/alchemy-sdk-js) or [NPM](https://www.npmjs.com/package/alchemy-sdk). It has feature parity with this library as well as better typing, more abstractions, and more documentation.
 
 Going forward, updates to this library will be made on a best-effort basis. If you see a bug or have a feature request, please open an issue or pull request on the [Github issues](https://github.com/alchemyplatform/alchemy-web3/issues) section.
 

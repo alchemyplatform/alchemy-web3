@@ -43,6 +43,16 @@ export function makeRestPayloadSender({
 
   const { fetch } = fetchPonyfill();
 
+  // NFT endpoints are prefixed differently, so the path must be constructed separately
+  const NFT_ENDPOINTS = ["getNFTs", "getNFTMetadata"];
+  const NFT_PREFIX = "nft/v2/";
+  const isNftPath = (path: string): boolean => {
+    return NFT_ENDPOINTS.includes(path);
+  };
+  const formatNftPath = (path: string): string => {
+    return NFT_PREFIX + apiKey + "/" + path;
+  };
+
   const sendRestPayload = async (
     path: string,
     payload: Record<string, any>,
@@ -54,7 +64,7 @@ export function makeRestPayloadSender({
     if (origin && apiKey) {
       const endpoint = new URI(origin)
         .search(payload)
-        .path(apiKey + path)
+        .path(isNftPath(path) ? formatNftPath(path) : apiKey + path)
         .toString();
       for (let i = 0; i < maxRetries + 1; i++) {
         const response = await fetch(endpoint);

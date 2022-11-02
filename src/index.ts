@@ -198,7 +198,7 @@ export function createAlchemyWeb3(
       restSender,
       callback,
       params,
-      path: "/v1/getNFTs/",
+      path: "getNFTs",
     });
   }
 
@@ -249,7 +249,7 @@ export function createAlchemyWeb3(
         restSender,
         callback,
         params,
-        path: "/v1/getNFTMetadata/",
+        path: "getNFTMetadata",
       }),
     getNfts,
     getTransactionReceipts: (params: TransactionReceiptsParams, callback) =>

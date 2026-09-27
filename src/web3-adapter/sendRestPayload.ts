@@ -3,6 +3,10 @@ import URI from "urijs";
 import { FullConfig } from "../types";
 import { delay } from "../util/promises";
 
+// Unbounded fetches hang forever when an upstream stalls (TCP accepted, no
+// response). Bound REST calls at 30s by default.
+const DEFAULT_REQUEST_TIMEOUT = 30000;
+
 export interface RestPayloadSender {
   sendRestPayload: SendRestPayloadFunction;
 }
@@ -67,7 +71,11 @@ export function makeRestPayloadSender({
         .path(isNftPath(path) ? formatNftPath(path) : apiKey + path)
         .toString();
       for (let i = 0; i < maxRetries + 1; i++) {
-        const response = await fetch(endpoint);
+        const response = await fetch(endpoint, {
+          ...(typeof AbortSignal !== "undefined" && AbortSignal.timeout
+            ? { signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT) }
+            : {}),
+        });
         const { status } = response;
         switch (status) {
           case 200:

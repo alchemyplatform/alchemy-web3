@@ -11,12 +11,20 @@ const ALCHEMY_HEADERS = new Headers({
 });
 const RATE_LIMIT_STATUS = 429;
 
+// Requests without a bound can hang indefinitely when the upstream stalls
+// (TCP accepted, no response). Default to 30s so callers surface a network
+// error instead of an unresolved promise.
+const DEFAULT_REQUEST_TIMEOUT = 30_000;
+
 export function makeJsonRpcHttpSender(url: string): AlchemySendJsonRpcFunction {
   return async (request) => {
     const response = await fetch(url, {
       method: "POST",
       headers: ALCHEMY_HEADERS,
       body: JSON.stringify(request),
+      ...(typeof AbortSignal !== "undefined" && AbortSignal.timeout
+        ? { signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT) }
+        : {}),
     });
     const { status } = response;
     switch (status) {
